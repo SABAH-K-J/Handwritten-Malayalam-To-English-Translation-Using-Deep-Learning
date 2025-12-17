@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # --- Backend Service ---
+  backend:
+    build: ./BACKEND
+    container_name: ocr_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./BACKEND:/app  # Live reload: Changes in local files update container
+      - ./BACKEND/models:/app/models # Ensure models are mapped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # --- Frontend Service ---
+  frontend:
+    build: ./FRONTEND
+    container_name: ocr_frontend
+    ports:
+      - "5173:5173"     # Maps Docker port 5173 to localhost:5173
+    volumes:
+      - ./FRONTEND:/app
+      - /app/node_modules # Prevent overwriting node_modules
+    depends_on:
+      - backend         # Frontend waits for backend to start
+    environment:
+      - VITE_API_URL=http://localhost:8000 
+      # Note: For browser-based fetch, 'localhost' is correct because 
+      # the browser (client) is running on your host machine.

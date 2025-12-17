@@ -1,0 +1,24 @@
+# --- Deep Learning Core ---
+torch
+torchvision
+numpy
+ultralytics
+
+# --- Image Processing ---
+opencv-python
+pillow
+
+# --- Malayalam Tools & NLP ---
+mlmorph
+mlmorph-spellchecker
+transformers
+sentencepiece
+
+# --- Server & API ---
+fastapi
+uvicorn
+python-multipart
+pydantic
+
+# --- Utilities ---
+requests
