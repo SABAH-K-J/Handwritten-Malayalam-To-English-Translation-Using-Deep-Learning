@@ -1,36 +1,23 @@
 import os
 import torch
 import unicodedata
+import difflib
 from transformers import pipeline
-from src.config import VOCAB_PATH, DEVICE
+from src.config import DICT_PATH, DEVICE
 
 # Import MLMorph (with safety check)
 try:
     from mlmorph_spellchecker import SpellChecker
+    MLMORPH_AVAILABLE = True
 except ImportError:
     print("⚠️ Warning: mlmorph_spellchecker not found.")
-    SpellChecker = None
+    MLMORPH_AVAILABLE = False
 
 class PostProcessor:
     def __init__(self):
         print("⚙️ Loading Post-Processor...")
         
-        # 1. Load Spell Checker
-        self.spell = None
-        if SpellChecker:
-            try:
-                self.spell = SpellChecker()
-                print("✅ MLMorph Active")
-            except Exception as e:
-                print(f"⚠️ MLMorph failed: {e}")
-
-        # 2. Load Split-Word Vocab
-        self.vocab = set()
-        if os.path.exists(VOCAB_PATH):
-            with open(VOCAB_PATH, 'r', encoding='utf-8') as f:
-                self.vocab = {line.strip() for line in f}
-        
-        # 3. Load Translator
+        # 1. Load Translator
         try:
             print("⏳ Loading Translator...")
             self.translator = pipeline(
@@ -44,45 +31,118 @@ class PostProcessor:
             print(f"⚠️ Translator failed: {e}")
             self.translator = None
 
-    def fix_split_words(self, words):
-        if not self.vocab: return words
-        fixed = []
+        # 2. Load Dictionary (The "Golden List")
+        self.valid_words = set()
+        if os.path.exists(DICT_PATH):
+            print(f"📚 Loading Dictionary: {DICT_PATH}")
+            try:
+                with open(DICT_PATH, 'r', encoding='utf-8') as f:
+                    # Read only the first word if lines contain metadata
+                    self.valid_words = {line.strip().split()[0] for line in f if line.strip()}
+                print(f"✅ Loaded {len(self.valid_words)} words.")
+            except Exception as e:
+                print(f"⚠️ Error reading dictionary: {e}")
+        else:
+            print(f"⚠️ Dictionary not found at {DICT_PATH}")
+
+        # 3. Load MLMorph (Optional Layer)
+        self.spell = None
+        if MLMORPH_AVAILABLE:
+            try:
+                self.spell = SpellChecker()
+                print("✅ MLMorph Active")
+            except Exception as e:
+                print(f"⚠️ MLMorph failed: {e}")
+
+    def fix_yolo_splits(self, text):
+        """
+        Aggressively merges suffixes detected as separate words.
+        Logic-based merging is superior to list-based for Malayalam.
+        """
+        words = text.split()
+        if not words: return ""
+        merged = []
         i = 0
         while i < len(words):
-            word = words[i]
+            curr = words[i]
             if i + 1 < len(words):
-                combined = word + words[i+1]
-                if combined in self.vocab:
-                    fixed.append(combined)
-                    i += 2
-                    continue
-            fixed.append(word)
+                next_w = words[i+1]
+                
+                # MERGE RULE 1: Joiners/Suffixes (Starting with 'ള', 'ല്ല', 'ത്ത', 'രു', 'ട്ട', 'ന്ന')
+                # These almost never start a word in Malayalam context
+                if next_w.startswith(('ള', 'ല്ല', 'ത്ത', 'രു', 'ട്ട', 'ന്ന')):
+                     curr += next_w
+                     i += 1
+                
+                # MERGE RULE 2: Very Short Fragments (< 3 chars)
+                elif len(next_w) < 3: 
+                    curr += next_w
+                    i += 1 
+                    
+            merged.append(curr)
             i += 1
-        return fixed
+        return " ".join(merged)
 
-    def smart_correct(self, word):
-        if not self.spell: return word
-        if self.spell.spellcheck(word): return word
-        candidates = self.spell.candidates(word)
-        return candidates[0] if candidates else word
+    def spell_check(self, text):
+        """
+        Multi-Layered Spell Check:
+        1. Check Dictionary (Exact Match)
+        2. Check MLMorph (Morphological Validity)
+        3. Fuzzy Match against Dictionary (90% Confidence)
+        """
+        if not self.valid_words: return text
+        words = text.split()
+        corrected = []
+        
+        for w in words:
+            # 1. Is it already valid?
+            if (w in self.valid_words) or (self.spell and self.spell.spellcheck(w)):
+                corrected.append(w)
+                continue
+            
+            # 2. Try MLMorph Candidate Generation
+            if self.spell:
+                candidates = self.spell.candidates(w)
+                if candidates:
+                    corrected.append(candidates[0])
+                    continue
+
+            # 3. Fallback: Dictionary Fuzzy Match (Conservative)
+            # Only replace if 90% sure, otherwise keep original
+            matches = difflib.get_close_matches(w, self.valid_words, n=1, cutoff=0.90)
+            if matches:
+                corrected.append(matches[0])
+            else:
+                corrected.append(w)
+                
+        return " ".join(corrected)
 
     def process(self, raw_text):
         if not raw_text.strip(): return raw_text, ""
         
+        # 1. Normalize Unicode
         text = unicodedata.normalize('NFC', raw_text)
-        words = text.split()
         
-        if self.vocab: words = self.fix_split_words(words)
-        if self.spell: words = [self.smart_correct(w) for w in words]
+        # 2. Fix Broken Words (YOLO Split Repair)
+        text = self.fix_yolo_splits(text)
         
-        corrected = " ".join(words)
+        # 3. Smart Spell Check
+        text = self.spell_check(text)
+        
+        # 4. Translate
         translation = ""
-        
         if self.translator:
             try:
-                out = self.translator(corrected, src_lang="mal_Mlym", tgt_lang="eng_Latn", max_length=256)
+                out = self.translator(
+                    text, 
+                    src_lang="mal_Mlym", 
+                    tgt_lang="eng_Latn", 
+                    max_length=256,
+                    num_beams=4,
+                    no_repeat_ngram_size=3
+                )
                 translation = out[0]['translation_text']
-            except:
-                translation = "[Error]"
+            except Exception:
+                translation = "[Translation Error]"
                 
-        return corrected, translation
+        return text, translation

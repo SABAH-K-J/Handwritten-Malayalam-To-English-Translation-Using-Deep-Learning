@@ -15,6 +15,10 @@ CRNN_PATH = os.path.join(MODELS_DIR, "best_resnet_model.pth")
 CHARSET_PATH = os.path.join(RESOURCES_DIR, "charset.txt")
 VOCAB_PATH = os.path.join(RESOURCES_DIR, "malayalam_vocab.txt")
 
+# --- NEW PATHS FOR ACCURACY ---
+LM_PATH = os.path.join(RESOURCES_DIR, "malayalam_lm.arpa")     # For KenLM Grammar Fixes
+DICT_PATH = os.path.join(RESOURCES_DIR, "malayalam_dict.txt")   # For Name/Spelling Fixes
+
 # Settings
 IMG_H = 32
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
