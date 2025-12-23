@@ -33,9 +33,10 @@ yarn-error.log*
 *.onnx
 *.bin
 # Ignore specific folders if you created them
-BACKEND/models/*.pt
-BACKEND/models/*.pth
-
+Backend/models/*.pt
+Backend/models/*.pth
+Backend/cloudflared-windows-amd64.exe
+Frontend/cloudflared-windows-amd64.exe
 # ========================
 # 4. DATA & TEMP FILES
 # ========================

@@ -56,5 +56,12 @@
     server: {
       port: 3000,
       open: true,
+      allowedHosts: [
+        'clean-rooms-beam.loca.lt', // The specific URL you have now
+        '.loca.lt',
+        '.serveo.net',
+        '.trycloudflare.com',
+        '.loca.lt'                 // This allows ANY localtunnel URL in the future
+      ]
     },
   });
