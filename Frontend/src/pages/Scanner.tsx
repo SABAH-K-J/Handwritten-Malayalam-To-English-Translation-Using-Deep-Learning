@@ -43,7 +43,7 @@ export default function Scanner() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("https://embedded-gas-paradise-missile.trycloudflare.com/predict", {
+      const response = await fetch("http://localhost:8000/predict", {
         method: "POST",
         body: formData,
       });

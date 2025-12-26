@@ -1,11 +1,18 @@
 import os
 import torch
 import unicodedata
-import difflib
+import pickle
+import logging
+import re  # Added for pattern matching
+from symspellpy import SymSpell, Verbosity
 from transformers import pipeline
-from src.config import DICT_PATH, DEVICE
+from src.config import DICT_PATH, CACHE_DIR
 
-# Import MLMorph (with safety check)
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Import MLMorph
 try:
     from mlmorph_spellchecker import SpellChecker
     MLMORPH_AVAILABLE = True
@@ -15,50 +22,117 @@ except ImportError:
 
 class PostProcessor:
     def __init__(self):
-        print("⚙️ Loading Post-Processor...")
+        print("⚙️ Loading Post-Processor (with Glyph & Noise Fixes)...")
         
-        # 1. Load Translator
+        # 0. Visual Confusion Map (Updated)
+        self.CONFUSION_MAP = {
+            'ണ്': 'ന', 'റ': 'ര', 'ഴ': 'ജ', 'ം': 'ൻ', 
+            'ല്': 'ൽ', 'ങ്ക': 'ങ്ങ', 'ക്ക': 'ക', 'റ്റ': 'ററ',
+            'ഞാന്ാ': 'ഞാൻ', 'ഞാന്': 'ഞാൻ', 'ഞാനൊരു': 'ഞാനൊരു', 
+            
+            # --- NEW FIXES FOR YOU ---
+            'ര്ു': 'മ്മ',   # Fixes 'നര്ുുടെ' -> 'നമ്മുടെ'
+            'ററ്': 'റ്റ',    # Common glyph split
+            'ഇൗ': 'ഈ',      # Common vowel split
+        }
+
+        self.INDEPENDENT_VOWELS = set(['അ', 'ആ', 'ഇ', 'ഈ', 'ഉ', 'ഊ', 'ഋ', 'എ', 'ഏ', 'ഐ', 'ഒ', 'ഓ', 'ഔ'])
+
+        # 1. SymSpell
+        self.sym_spell = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
+        self._load_dictionary_optimized()
+
+        # 2. MLMorph
+        self.mlmorph = None
+        if MLMORPH_AVAILABLE:
+            try:
+                self.mlmorph = SpellChecker()
+            except Exception:
+                pass
+
+        # 3. Translator (NLLB)
+        self.device = 0 if torch.cuda.is_available() else -1
+        self.translator = None
         try:
-            print("⏳ Loading Translator...")
+            print("⏳ Loading NLLB Translator...")
             self.translator = pipeline(
                 "translation", 
                 model="facebook/nllb-200-distilled-600M", 
-                torch_dtype=torch.float32,
-                device=0 if torch.cuda.is_available() else -1
+                device=self.device,
+                torch_dtype=torch.float16 if self.device == 0 else torch.float32,
+                framework="pt"
             )
             print("✅ Translator Ready")
         except Exception as e:
-            print(f"⚠️ Translator failed: {e}")
-            self.translator = None
+            print(f"⚠️ Translator failed to load: {e}")
 
-        # 2. Load Dictionary (The "Golden List")
-        self.valid_words = set()
+    def _load_dictionary_optimized(self):
+        cache_path = os.path.join(CACHE_DIR, "symspell_dict.pkl")
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "rb") as f:
+                    self.sym_spell = pickle.load(f)
+                return
+            except Exception:
+                pass 
+
         if os.path.exists(DICT_PATH):
-            print(f"📚 Loading Dictionary: {DICT_PATH}")
-            try:
+            if not self.sym_spell.load_dictionary(DICT_PATH, term_index=0, count_index=1, encoding="utf-8"):
                 with open(DICT_PATH, 'r', encoding='utf-8') as f:
-                    # Read only the first word if lines contain metadata
-                    self.valid_words = {line.strip().split()[0] for line in f if line.strip()}
-                print(f"✅ Loaded {len(self.valid_words)} words.")
-            except Exception as e:
-                print(f"⚠️ Error reading dictionary: {e}")
-        else:
-            print(f"⚠️ Dictionary not found at {DICT_PATH}")
-
-        # 3. Load MLMorph (Optional Layer)
-        self.spell = None
-        if MLMORPH_AVAILABLE:
+                    for line in f:
+                        word = line.strip().split()[0]
+                        self.sym_spell.create_dictionary_entry(word, 1)
             try:
-                self.spell = SpellChecker()
-                print("✅ MLMorph Active")
-            except Exception as e:
-                print(f"⚠️ MLMorph failed: {e}")
+                if not os.path.exists(CACHE_DIR): os.makedirs(CACHE_DIR)
+                with open(cache_path, "wb") as f:
+                    pickle.dump(self.sym_spell, f)
+            except Exception:
+                pass
+
+    def clean_artifacts(self, text):
+        """
+        NEW: Removes OCR noise like trailing viramas on Chillu letters.
+        Ex: 'ക്ലാസിൽ്' -> 'ക്ലാസിൽ'
+        """
+        # 1. Remove '്' (Virama) if it follows a Chillu letter (Grammatically illegal)
+        # Chillu letters: ൻ, ർ, ൽ, ൾ, ൺ
+        text = re.sub(r'([ൻർൽൾൺ])്', r'\1', text)
+        
+        # 2. Remove double viramas (്് -> ്)
+        text = text.replace('്്', '്')
+        
+        # 3. Remove virama if it is the very last character of a word
+        # (Malayalam words rarely end in raw virama unless it's 'u' sound representation, 
+        # but modern OCR usually mistakes it for end-noise)
+        words = text.split()
+        cleaned_words = []
+        for w in words:
+            if len(w) > 1 and w.endswith('്'):
+                # Check if removing it makes it a valid word
+                stripped = w[:-1]
+                if stripped in self.sym_spell.words:
+                    cleaned_words.append(stripped)
+                    continue
+            cleaned_words.append(w)
+            
+        return " ".join(cleaned_words)
+
+    def apply_visual_correction(self, word):
+        if word in self.CONFUSION_MAP: return self.CONFUSION_MAP[word]
+        if word in self.sym_spell.words: return word
+        
+        for wrong, right in self.CONFUSION_MAP.items():
+            if wrong in word:
+                candidate = word.replace(wrong, right)
+                if candidate in self.sym_spell.words: return candidate
+        
+        if word.endswith('ന്'):
+            candidate = word[:-2] + 'ൻ'
+            if candidate in self.sym_spell.words: return candidate
+            
+        return word
 
     def fix_yolo_splits(self, text):
-        """
-        Aggressively merges suffixes detected as separate words.
-        Logic-based merging is superior to list-based for Malayalam.
-        """
         words = text.split()
         if not words: return ""
         merged = []
@@ -68,81 +142,75 @@ class PostProcessor:
             if i + 1 < len(words):
                 next_w = words[i+1]
                 
-                # MERGE RULE 1: Joiners/Suffixes (Starting with 'ള', 'ല്ല', 'ത്ത', 'രു', 'ട്ട', 'ന്ന')
-                # These almost never start a word in Malayalam context
-                if next_w.startswith(('ള', 'ല്ല', 'ത്ത', 'രു', 'ട്ട', 'ന്ന')):
-                     curr += next_w
-                     i += 1
+                # Vowel Guard
+                if next_w[0] in self.INDEPENDENT_VOWELS:
+                    merged.append(curr); i += 1; continue
                 
-                # MERGE RULE 2: Very Short Fragments (< 3 chars)
-                elif len(next_w) < 3: 
-                    curr += next_w
-                    i += 1 
-                    
+                # Check Validity
+                next_is_valid = (next_w in self.sym_spell.words) or (self.mlmorph and self.mlmorph.spellcheck(next_w))
+                
+                # Don't merge if next word is valid (unless it's a number like 'നാല്')
+                # We relax the rule slightly for numbers if needed, but usually strict is safer.
+                if next_is_valid and len(next_w) > 1:
+                    merged.append(curr); i += 1; continue
+
+                combined = curr + next_w
+                if combined in self.sym_spell.words or (self.mlmorph and self.mlmorph.spellcheck(combined)):
+                    merged.append(combined); i += 2; continue
+
             merged.append(curr)
             i += 1
         return " ".join(merged)
 
     def spell_check(self, text):
-        """
-        Multi-Layered Spell Check:
-        1. Check Dictionary (Exact Match)
-        2. Check MLMorph (Morphological Validity)
-        3. Fuzzy Match against Dictionary (90% Confidence)
-        """
-        if not self.valid_words: return text
         words = text.split()
         corrected = []
-        
-        for w in words:
-            # 1. Is it already valid?
-            if (w in self.valid_words) or (self.spell and self.spell.spellcheck(w)):
-                corrected.append(w)
-                continue
+        for word in words:
+            word = self.apply_visual_correction(word)
+            if word in self.sym_spell.words:
+                corrected.append(word); continue
             
-            # 2. Try MLMorph Candidate Generation
-            if self.spell:
-                candidates = self.spell.candidates(w)
-                if candidates:
-                    corrected.append(candidates[0])
-                    continue
-
-            # 3. Fallback: Dictionary Fuzzy Match (Conservative)
-            # Only replace if 90% sure, otherwise keep original
-            matches = difflib.get_close_matches(w, self.valid_words, n=1, cutoff=0.90)
-            if matches:
-                corrected.append(matches[0])
+            suggestions = self.sym_spell.lookup(word, Verbosity.TOP, max_edit_distance=2, include_unknown=True)
+            if suggestions:
+                best = suggestions[0]
+                if len(word) <= 4 and best.distance > 1: corrected.append(word)
+                elif best.distance > 2: corrected.append(word)
+                else: corrected.append(best.term)
             else:
-                corrected.append(w)
-                
+                corrected.append(word)
         return " ".join(corrected)
+
+    def translate_text(self, text):
+        if not self.translator or not text.strip():
+            return ""
+        try:
+            out = self.translator(
+                text, 
+                src_lang="mal_Mlym", 
+                tgt_lang="eng_Latn", 
+                max_length=256,
+            )
+            return out[0]['translation_text']
+        except Exception as e:
+            print(f"Translation Error: {e}")
+            return "[Translation Failed]"
 
     def process(self, raw_text):
         if not raw_text.strip(): return raw_text, ""
         
-        # 1. Normalize Unicode
-        text = unicodedata.normalize('NFC', raw_text)
+        # 1. Normalize
+        normalized_raw = unicodedata.normalize('NFC', raw_text)
         
-        # 2. Fix Broken Words (YOLO Split Repair)
-        text = self.fix_yolo_splits(text)
+        # 2. Clean Artifacts (NEW STEP: Fixes 'ക്ലാസിൽ്')
+        cleaned_text = self.clean_artifacts(normalized_raw)
         
-        # 3. Smart Spell Check
-        text = self.spell_check(text)
+        # 3. Merge (Strict)
+        merged_text = self.fix_yolo_splits(cleaned_text)
         
-        # 4. Translate
-        translation = ""
-        if self.translator:
-            try:
-                out = self.translator(
-                    text, 
-                    src_lang="mal_Mlym", 
-                    tgt_lang="eng_Latn", 
-                    max_length=256,
-                    num_beams=4,
-                    no_repeat_ngram_size=3
-                )
-                translation = out[0]['translation_text']
-            except Exception:
-                translation = "[Translation Error]"
-                
-        return text, translation
+        # 4. Spell Check (Fixes 'നര്ുുടെ' via Map)
+        processed_text = self.spell_check(merged_text)
+        
+        # 5. Translate
+        translation = self.translate_text(processed_text)
+        
+        return processed_text, translation
