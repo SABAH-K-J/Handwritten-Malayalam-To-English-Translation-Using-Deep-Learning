@@ -183,4 +183,4 @@ class MalayalamOCR:
         smart_sentence = " ".join(full_text_list)
         corrected, translated = self.post_processor.process(smart_sentence)
         
-        return smart_sentence, corrected, translated
+        return smart_sentence, corrected, "Translation not implemented"

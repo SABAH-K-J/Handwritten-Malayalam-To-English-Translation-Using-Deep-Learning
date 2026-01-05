@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./Backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the models directory so you don't have to rebuild image when models change
+      - ./Backend/models:/app/models
+      # Mount source code for easier development (optional, remove for production)
+      - ./Backend/src:/app/src
+      - ./Backend/server.py:/app/server.py
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  frontend:
+    build: ./Frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

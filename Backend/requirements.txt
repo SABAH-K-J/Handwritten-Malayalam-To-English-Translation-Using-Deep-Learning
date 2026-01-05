@@ -16,6 +16,7 @@ pyctcdecode
 https://github.com/kpu/kenlm/archive/master.zip
 
 # --- Malayalam Tools & NLP ---
+symspellpy
 mlmorph
 mlmorph-spellchecker
 transformers
