@@ -38,16 +38,16 @@ ocr_engine = None
 def load_model():
     global ocr_engine
     print("-----------------------------------")
-    print("🚀 Server starting...")
-    print("⚙️ Loading AI Models (YOLO + CRNN + KenLM + NLLB)...")
+    print("PROCESS : Server starting...")
+    print("PROCESS : Loading AI Models (YOLO + CRNN + KenLM + NLLB)")
     
     try:
         # Initializes the robust MalayalamOCR class from src/ocr_engine.py
         ocr_engine = MalayalamOCR()
-        print("✅ Models Loaded Successfully!")
+        print(" SUCCESS : Models Loaded Successfully!")
         print("-----------------------------------")
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: Could not load model.\n{e}")
+        print(f"CRITICAL ERROR : Could not load model.\n{e}")
 
 # 5. Image OCR Route
 @app.post("/predict")
@@ -68,7 +68,7 @@ async def predict_image(file: UploadFile = File(...)):
 
         if ocr_engine:
             # Run the full pipeline: YOLO -> CRNN -> KenLM -> PostProcessor
-            raw_text, corrected_text, translation = ocr_engine.run(temp_path)
+            raw_text, corrected_text, translation = ocr_engine.run(temp_path,debug=True)
         else:
             raise Exception("Model is not loaded.")
 

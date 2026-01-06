@@ -17,12 +17,12 @@ try:
     from mlmorph_spellchecker import SpellChecker
     MLMORPH_AVAILABLE = True
 except ImportError:
-    print("⚠️ Warning: mlmorph_spellchecker not found.")
+    print("WARNING : mlmorph_spellchecker not found.")
     MLMORPH_AVAILABLE = False
 
 class PostProcessor:
     def __init__(self):
-        print("⚙️ Loading Post-Processor (with Glyph & Noise Fixes)...")
+        print("PROCESS : Loading Post-Processor (with Glyph & Noise Fixes)...")
         
         # 0. Visual Confusion Map (Updated)
         self.CONFUSION_MAP = {
@@ -54,7 +54,7 @@ class PostProcessor:
         self.device = 0 if torch.cuda.is_available() else -1
         self.translator = None
         try:
-            print("⏳ Loading NLLB Translator...")
+            print("PROCESS : Loading NLLB Translator...")
             self.translator = pipeline(
                 "translation", 
                 model="facebook/nllb-200-distilled-600M", 
@@ -62,9 +62,9 @@ class PostProcessor:
                 torch_dtype=torch.float16 if self.device == 0 else torch.float32,
                 framework="pt"
             )
-            print("✅ Translator Ready")
+            print("SUCCESS : Translator Ready")
         except Exception as e:
-            print(f"⚠️ Translator failed to load: {e}")
+            print(f"WARNING : Translator failed to load: {e}")
 
     def _load_dictionary_optimized(self):
         cache_path = os.path.join(CACHE_DIR, "symspell_dict.pkl")

@@ -16,12 +16,12 @@ try:
     from pyctcdecode import build_ctcdecoder
     BEAM_SEARCH_AVAILABLE = True
 except ImportError:
-    print("⚠️ Warning: 'pyctcdecode' not found.")
+    print("WARNING : 'pyctcdecode' not found.")
     BEAM_SEARCH_AVAILABLE = False
 
 class MalayalamOCR:
     def __init__(self):
-        print(f"\n🚀 Initializing OCR Engine...")
+        print(f"\nPROCESS : Initializing OCR Engine")
         with open(CHARSET_PATH, 'r', encoding='utf-8') as f:
             self.itos = [''] + [line.strip() for line in f if line.strip()]
         
@@ -48,7 +48,7 @@ class MalayalamOCR:
                 alpha=1.0, beta=1.5
             )
         self.post_processor = PostProcessor()
-        print("✅ System Ready!")
+        print(" SUCCESS : System Ready!")
 
     def scan_image(self, image, debug=False):
         """Delegates to the clean preprocessor module."""
@@ -58,7 +58,7 @@ class MalayalamOCR:
                 cv2.imwrite("debug_scanner_output.jpg", processed_bgr)
             return processed_bgr
         except Exception as e:
-            print(f"⚠️ Scanner failed: {e}")
+            print(f"WARNING : Scanner failed: {e}")
             return image
 
     def sort_boxes(self, boxes):
@@ -183,4 +183,4 @@ class MalayalamOCR:
         smart_sentence = " ".join(full_text_list)
         corrected, translated = self.post_processor.process(smart_sentence)
         
-        return smart_sentence, corrected, "Translation not implemented"
+        return smart_sentence, corrected, "WARNING : Translation not implemented"
