@@ -10,6 +10,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
+# --- TTS Import ---
+from gtts import gTTS
+
 # --- IMPORTS FROM NEW STRUCTURE ---
 from src.ocr_engine import MalayalamOCR
 from src.config import TEMP_DIR
@@ -38,6 +41,10 @@ class TranslationRequest(BaseModel):
 
 class PDFRequest(BaseModel):
     text: str
+
+class TTSRequest(BaseModel):
+    text: str
+    lang: str  # 'en' for English, 'ml' for Malayalam
 
 # 3. Load Model on Startup
 ocr_engine = None
@@ -117,7 +124,7 @@ async def translate_text_only(request: TranslationRequest):
             "message": str(e)
         }, status_code=500)
 
-# 6. PDF Generation Route (NEW)
+# 6. PDF Generation Route
 @app.post("/generate-pdf")
 async def generate_pdf_endpoint(request: PDFRequest):
     """
@@ -159,7 +166,32 @@ async def generate_pdf_endpoint(request: PDFRequest):
         headers={"Content-Disposition": "attachment; filename=translation.pdf"}
     )
 
-# 7. Health Check
+# 7. Text-to-Speech Route (NEW)
+@app.post("/tts")
+async def tts_endpoint(request: TTSRequest):
+    """
+    Generates MP3 audio from text using Google TTS.
+    """
+    try:
+        if not request.text.strip():
+            raise Exception("No text provided")
+
+        # Generate Audio
+        # 'slow=False' makes it read at normal speed
+        tts = gTTS(text=request.text, lang=request.lang, slow=False)
+        
+        # Save to in-memory buffer
+        buffer = io.BytesIO()
+        tts.write_to_fp(buffer)
+        buffer.seek(0)
+        
+        return StreamingResponse(buffer, media_type="audio/mp3")
+
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# 8. Health Check
 @app.get("/")
 def home():
     return {"message": "Malayalam OCR & Translation API is Online & Optimized!"}
