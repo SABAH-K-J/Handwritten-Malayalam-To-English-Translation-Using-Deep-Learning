@@ -1,9 +1,14 @@
 import os
-import shutil
+import io
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+
+# --- PDF Generation Imports ---
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
 # --- IMPORTS FROM NEW STRUCTURE ---
 from src.ocr_engine import MalayalamOCR
@@ -27,11 +32,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Define Input Model for Text Translation Route
+# --- Data Models ---
 class TranslationRequest(BaseModel):
     text: str
 
-# 4. Load Model on Startup
+class PDFRequest(BaseModel):
+    text: str
+
+# 3. Load Model on Startup
 ocr_engine = None
 
 @app.on_event("startup")
@@ -49,48 +57,39 @@ def load_model():
     except Exception as e:
         print(f"CRITICAL ERROR : Could not load model.\n{e}")
 
-# 5. Image OCR Route
+# 4. Image OCR Route
 @app.post("/predict")
-async def predict_image(file: UploadFile = File(...)):
-    """
-    Takes an IMAGE -> Returns Raw OCR, Corrected Malayalam, English Translation
-    """
+async def predict(file: UploadFile = File(...)):
     try:
-        # Ensure temp directory exists
-        if not os.path.exists(TEMP_DIR):
-            os.makedirs(TEMP_DIR)
+        # 1. Save uploaded file temporarily
+        temp_filename = f"temp_{file.filename}"
+        with open(temp_filename, "wb") as buffer:
+            buffer.write(await file.read())
 
-        # Save uploaded file safely
-        temp_path = os.path.join(TEMP_DIR, f"upload_{file.filename}")
+        # 2. Run OCR (Wrap in try-except to catch inner errors)
+        try:
+            full_text, corrected, translated = ocr_engine.run(temp_filename)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()  # <--- PRINT THE ERROR TO CONSOLE
+            return JSONResponse(status_code=500, content={"error": f"OCR Engine Failed: {str(e)}"})
         
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # 3. Cleanup
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
-        if ocr_engine:
-            # Run the full pipeline: YOLO -> CRNN -> KenLM -> PostProcessor
-            raw_text, corrected_text, translation = ocr_engine.run(temp_path,debug=True)
-        else:
-            raise Exception("Model is not loaded.")
-
-        # Cleanup: Remove the temp file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-        return JSONResponse(content={
-            "status": "success",
-            "filename": file.filename,
-            "raw_text": raw_text,       # The Smart/KenLM output
-            "corrected_text": corrected_text, # Spell Checked output
-            "translation": translation  # English output
-        })
+        return {
+            "original_text": full_text,
+            "corrected_text": corrected,
+            "translated_text": translated
+        }
 
     except Exception as e:
-        return JSONResponse(content={
-            "status": "error",
-            "message": str(e)
-        }, status_code=500)
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
-# 6. Text-Only Translation Route
+# 5. Text-Only Translation Route
 @app.post("/translate")
 async def translate_text_only(request: TranslationRequest):
     """
@@ -117,6 +116,48 @@ async def translate_text_only(request: TranslationRequest):
             "status": "error",
             "message": str(e)
         }, status_code=500)
+
+# 6. PDF Generation Route (NEW)
+@app.post("/generate-pdf")
+async def generate_pdf_endpoint(request: PDFRequest):
+    """
+    Generates a PDF file from the provided text.
+    """
+    buffer = io.BytesIO()
+    
+    # Create the PDF object
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=18
+    )
+
+    # Styles
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Add Title
+    story.append(Paragraph("Translated Document", styles['Title']))
+    story.append(Spacer(1, 12))
+
+    # Add Body Text (Handle newlines properly)
+    formatted_text = request.text.replace("\n", "<br />")
+    story.append(Paragraph(formatted_text, styles['Normal']))
+
+    # Build PDF
+    doc.build(story)
+    
+    # Move buffer position to beginning
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": "attachment; filename=translation.pdf"}
+    )
 
 # 7. Health Check
 @app.get("/")

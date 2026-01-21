@@ -1,3 +1,4 @@
+# src/architecture.py
 import torch.nn as nn
 
 class ResNetBlock(nn.Module):
@@ -12,40 +13,44 @@ class ResNetBlock(nn.Module):
 
     def forward(self, x):
         identity = x
+        if self.downsample is not None: identity = self.downsample(x)
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
         out = self.conv2(out)
         out = self.bn2(out)
-        if self.downsample is not None:
-            identity = self.downsample(x)
         out += identity
         out = self.relu(out)
         return out
 
-class ResNetCRNN(nn.Module):
+class CustomCRNN(nn.Module):
     def __init__(self, num_classes):
-        super(ResNetCRNN, self).__init__()
+        super(CustomCRNN, self).__init__()
         self.in_channels = 64
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
+        # --- KEY DIFFERENCE: WIDE ARCHITECTURE ---
+        # We only downsample width in Layer 2. Layers 3 & 4 keep width high.
         self.layer1 = self._make_layer(64, 2, stride=1)
-        self.layer2 = self._make_layer(128, 2, stride=2)
-        self.layer3 = self._make_layer(256, 2, stride=(2,1))
-        self.layer4 = self._make_layer(512, 2, stride=(2,1))
+        self.layer2 = self._make_layer(128, 2, stride=2)     # H/2, W/2
+        self.layer3 = self._make_layer(256, 2, stride=(2,1)) # H/4, W/2
+        self.layer4 = self._make_layer(512, 2, stride=(2,1)) # H/8, W/2
 
         self.last_conv = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=2, stride=(2,1), padding=0),
             nn.BatchNorm2d(512),
             nn.ReLU()
         )
+        
+        # Updated RNN with Dropout (Matches your 93% Training)
         self.rnn = nn.Sequential(
-            nn.LSTM(512, 256, bidirectional=True, batch_first=True),
+            nn.LSTM(512, 256, bidirectional=True, batch_first=True, num_layers=2, dropout=0.5),
             nn.Linear(512, 256),
             nn.ELU(),
+            nn.Dropout(0.2),
             nn.Linear(256, num_classes)
         )
 
@@ -73,9 +78,10 @@ class ResNetCRNN(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         x = self.last_conv(x)
-        x = x.squeeze(2).permute(0, 2, 1)
+        x = x.squeeze(2).permute(0, 2, 1) 
         x, _ = self.rnn[0](x)
         x = self.rnn[1](x)
         x = self.rnn[2](x)
         x = self.rnn[3](x)
-        return x.transpose(0, 1)
+        x = self.rnn[4](x)
+        return x

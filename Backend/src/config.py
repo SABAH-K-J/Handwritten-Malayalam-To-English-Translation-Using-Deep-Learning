@@ -22,10 +22,10 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # 2. FILE PATHS
 # ==========================================
 YOLO_PATH = os.path.join(MODELS_DIR, "best_3.pt")
-CRNN_PATH = os.path.join(MODELS_DIR, "best_resnet_model.pth")
+CRNN_PATH = os.path.join(MODELS_DIR, "best_custom_model.pth")
 CHARSET_PATH = os.path.join(RESOURCES_DIR, "charset.txt")
 VOCAB_PATH = os.path.join(RESOURCES_DIR, "malayalam_vocab.txt")
-
+TRAIN_LABEL = os.path.join(RESOURCES_DIR, "rec_gt_train.txt")
 # Language Model & Dictionary (for Post-Processor)
 LM_PATH = os.path.join(RESOURCES_DIR, "malayalam_lm.arpa")
 DICT_PATH = os.path.join(RESOURCES_DIR, "malayalam_dict.txt")

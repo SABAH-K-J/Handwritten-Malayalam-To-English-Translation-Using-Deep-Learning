@@ -5,22 +5,13 @@ numpy
 ultralytics
 
 # --- Image Processing ---
-opencv-python-headless  # Lighter version for servers (removes GUI deps)
+opencv-python-headless
 pillow
-
-# --- Smart Decoder (KenLM & Beam Search) ---
-pyctcdecode
-# Note: Installing kenlm via pip can sometimes be tricky on Windows.
-# If 'pip install kenlm' fails, download the .whl file from: 
-# https://github.com/jpuigcerver/kenlm/releases or use standard pip
-https://github.com/kpu/kenlm/archive/master.zip
 
 # --- Malayalam Tools & NLP ---
 symspellpy
-mlmorph
-mlmorph-spellchecker
 transformers
-sentencepiece  # Built-in, but listing for clarity (no install needed usually)
+sentencepiece
 
 # --- Server & API ---
 fastapi

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { UploadCard } from "@/components/UploadCard";
-import { CameraCapture } from "@/components/CameraCapture";
+import { CameraCapture } from "@/components/CameraCapture"; 
+import { MalayalamKeyboard } from "@/components/MalayalamKeyboard"; // Import the Keyboard
 import { Button } from "@/components/ui/button";
 import { 
   Camera, 
@@ -12,29 +12,41 @@ import {
   Copy, 
   Check,
   Upload,
-  Zap
+  Zap,
+  AlertCircle,
+  Download,
+  RefreshCw 
 } from "lucide-react";
 
 type TabType = "corrected" | "translation" | "raw";
 
+// ⚠️ YOUR API URL CONFIGURATION
+const BASE_URL = "https://moral-geneva-spare-involve.trycloudflare.com";
+
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); 
+  const [isRetranslating, setIsRetranslating] = useState(false); 
   const [showCamera, setShowCamera] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Data States
   const [rawText, setRawText] = useState("");
   const [correctedText, setCorrectedText] = useState("");
   const [translation, setTranslation] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<TabType>("corrected");
 
+  // --- 1. Main Process Function (Image -> OCR) ---
   const processImage = async (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => setUploadedImage(e.target?.result as string);
     reader.readAsDataURL(file);
 
     setIsLoading(true);
+    setErrorMsg(null);
     setRawText("");
     setCorrectedText("");
     setTranslation("");
@@ -43,29 +55,91 @@ export default function Scanner() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:8000/predict", {
+      const response = await fetch(`${BASE_URL}/predict`, {
         method: "POST",
         body: formData,
       });
 
       const data = await response.json();
 
-      if (data.status === "success") {
-        setRawText(data.raw_text || "No raw text found.");
-        setCorrectedText(data.corrected_text || "No text detected.");
-        setTranslation(data.translation || "Translation failed.");
-        setActiveTab("corrected");
-      } else {
-        setCorrectedText("Error: " + data.message);
+      if (!response.ok) {
+        throw new Error(data.error || `Server Error: ${response.status}`);
       }
-    } catch (error) {
+
+      setRawText(data.original_text || "No text found.");
+      setCorrectedText(data.corrected_text || "");
+      setTranslation(data.translated_text || "");
+      setActiveTab("corrected");
+
+    } catch (error: any) {
       console.error("OCR Failed:", error);
-      setCorrectedText("Failed to connect to the server.");
+      setErrorMsg(error.message || "Failed to connect to backend.");
+      setCorrectedText("Could not process document.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- 2. Handle Re-Translation (Edited Text -> New English) ---
+  const handleRetranslate = async () => {
+    if (!correctedText.trim()) return;
+    setIsRetranslating(true);
+
+    try {
+      const response = await fetch(`${BASE_URL}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: correctedText }), 
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Translation Failed");
+
+      setTranslation(data.translation);
+      setActiveTab("translation"); 
+
+    } catch (error) {
+      console.error("Re-translation failed:", error);
+      alert("Failed to update translation. Check backend console.");
+    } finally {
+      setIsRetranslating(false);
+    }
+  };
+
+  // --- 3. Handle PDF Download ---
+  const handleDownloadPDF = async () => {
+    if (!translation) return;
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch(`${BASE_URL}/generate-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: translation }),
+      });
+
+      if (!response.ok) throw new Error("PDF Generation Failed");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "translated_document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Failed to download PDF.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // --- Helpers ---
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processImage(file);
@@ -78,6 +152,7 @@ export default function Scanner() {
 
   const resetScanner = () => {
     setUploadedImage(null);
+    setErrorMsg(null);
     setRawText("");
     setCorrectedText("");
     setTranslation("");
@@ -88,6 +163,7 @@ export default function Scanner() {
       case "corrected": return correctedText;
       case "translation": return translation;
       case "raw": return rawText;
+      default: return "";
     }
   };
 
@@ -105,6 +181,7 @@ export default function Scanner() {
 
   return (
     <div className="min-h-screen pt-20 pb-12 bg-background">
+      {/* Camera Modal Overlay */}
       {showCamera && (
         <CameraCapture
           onCapture={handleCameraCapture}
@@ -114,10 +191,9 @@ export default function Scanner() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!uploadedImage ? (
-          /* Upload State */
+          /* ================= UPLOAD VIEW ================= */
           <div className="min-h-[calc(100vh-12rem)] flex flex-col items-center justify-center">
             <div className="w-full max-w-3xl">
-              {/* Header */}
               <div className="text-center mb-12 animate-fade-in">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-6">
                   <Zap className="w-3.5 h-3.5" />
@@ -131,9 +207,8 @@ export default function Scanner() {
                 </p>
               </div>
 
-              {/* Upload Options */}
               <div className="grid md:grid-cols-2 gap-6 animate-slide-up">
-                {/* File Upload */}
+                {/* File Upload Input */}
                 <label className="group relative cursor-pointer">
                   <input
                     type="file"
@@ -151,13 +226,10 @@ export default function Scanner() {
                     <p className="text-sm text-muted-foreground text-center">
                       Drag & drop or click to browse
                     </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      JPG, PNG up to 10MB
-                    </p>
                   </div>
                 </label>
 
-                {/* Camera Capture */}
+                {/* Camera Button */}
                 <button
                   onClick={() => setShowCamera(true)}
                   className="group h-64 rounded-3xl border-2 border-dashed border-border bg-card hover:border-primary/50 hover:bg-accent/20 transition-all duration-300 flex flex-col items-center justify-center p-8"
@@ -171,33 +243,13 @@ export default function Scanner() {
                   <p className="text-sm text-muted-foreground text-center">
                     Take a photo directly
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Requires camera permission
-                  </p>
                 </button>
-              </div>
-
-              {/* Features */}
-              <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: "200ms" }}>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span>AI Spell Check</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Languages className="w-4 h-4 text-primary" />
-                  <span>English Translation</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span>Instant Results</span>
-                </div>
               </div>
             </div>
           </div>
         ) : (
-          /* Results State */
+          /* ================= RESULTS VIEW ================= */
           <div className="animate-fade-in">
-            {/* Back Button */}
             <Button
               variant="ghost"
               onClick={resetScanner}
@@ -208,7 +260,7 @@ export default function Scanner() {
             </Button>
 
             <div className="grid lg:grid-cols-5 gap-8">
-              {/* Image Preview - 2 columns */}
+              {/* Left Column: Image Preview */}
               <div className="lg:col-span-2">
                 <div className="sticky top-24">
                   <div className="bg-card rounded-3xl border border-border shadow-lg overflow-hidden">
@@ -234,9 +286,9 @@ export default function Scanner() {
                 </div>
               </div>
 
-              {/* Results - 3 columns */}
+              {/* Right Column: Output Tabs */}
               <div className="lg:col-span-3 space-y-6">
-                {/* Tab Selector */}
+                {/* Tab Navigation */}
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {tabs.map((tab) => (
                     <button
@@ -263,9 +315,10 @@ export default function Scanner() {
                   ))}
                 </div>
 
-                {/* Content Card */}
-                <div className="bg-card rounded-3xl border border-border shadow-lg overflow-hidden">
-                  <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
+                {/* Output Card */}
+                <div className="bg-card rounded-3xl border border-border shadow-lg overflow-hidden flex flex-col">
+                  {/* Card Header */}
+                  <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         {activeTab === "corrected" && <FileText className="w-4 h-4 text-primary" />}
@@ -278,38 +331,66 @@ export default function Scanner() {
                           {activeTab === "translation" && "English Translation"}
                           {activeTab === "raw" && "Raw OCR Output"}
                         </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {activeTab === "corrected" && "Spell-checked text"}
-                          {activeTab === "translation" && "Translated to English"}
-                          {activeTab === "raw" && "Direct OCR result"}
-                        </p>
                       </div>
                     </div>
-                    {correctedText && !isLoading && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={copyToClipboard}
-                        className="gap-2 rounded-xl"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="w-4 h-4 text-green-500" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            Copy
-                          </>
+                    
+                    <div className="flex gap-2">
+                        {/* 1. RE-TRANSLATE BUTTON (Only on Malayalam Tab) */}
+                        {activeTab === "corrected" && !isLoading && !errorMsg && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRetranslate}
+                            disabled={isRetranslating}
+                            className="gap-2 rounded-xl border-primary/20 text-primary hover:bg-primary/5"
+                          >
+                            <RefreshCw className={`w-4 h-4 ${isRetranslating ? 'animate-spin' : ''}`} />
+                            {isRetranslating ? "Translating..." : "Update Translation"}
+                          </Button>
                         )}
-                      </Button>
-                    )}
+
+                        {/* 2. PDF BUTTON (Only on Translation Tab) */}
+                        {activeTab === "translation" && !isLoading && !errorMsg && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDownloadPDF}
+                            disabled={isDownloading}
+                            className="gap-2 rounded-xl"
+                          >
+                            {isDownloading ? <Sparkles className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            PDF
+                          </Button>
+                        )}
+
+                        {/* 3. COPY BUTTON */}
+                        {!isLoading && !errorMsg && getCurrentText() && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={copyToClipboard}
+                            className="gap-2 rounded-xl"
+                        >
+                            {copied ? (
+                                <>
+                                    <Check className="w-4 h-4 text-green-500" />
+                                    Copied
+                                </>
+                            ) : (
+                                <>
+                                    <Copy className="w-4 h-4" />
+                                    Copy
+                                </>
+                            )}
+                        </Button>
+                        )}
+                    </div>
                   </div>
 
-                  <div className="p-6 min-h-[300px]">
+                  {/* Content Area */}
+                  <div className="flex-1 min-h-[400px] flex flex-col relative">
                     {isLoading ? (
-                      <div className="flex flex-col items-center justify-center h-64 space-y-6">
+                      <div className="flex flex-col items-center justify-center h-64 space-y-6 m-auto">
                         <div className="relative">
                           <div className="w-16 h-16 rounded-full border-4 border-muted animate-spin border-t-primary" />
                           <div className="absolute inset-0 flex items-center justify-center">
@@ -317,27 +398,44 @@ export default function Scanner() {
                           </div>
                         </div>
                         <div className="text-center">
-                          <p className="font-display font-semibold text-foreground mb-1">Processing your document</p>
-                          <p className="text-sm text-muted-foreground">
-                            Running OCR, spell check & translation...
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-                          <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-                          <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                          <p className="font-display font-semibold text-foreground mb-1">Processing...</p>
                         </div>
                       </div>
-                    ) : correctedText ? (
-                      <p className={`text-lg leading-relaxed text-foreground whitespace-pre-wrap ${
-                        activeTab !== "translation" ? "font-malayalam" : ""
-                      }`}>
-                        {getCurrentText()}
-                      </p>
+                    ) : errorMsg ? (
+                      <div className="flex flex-col items-center justify-center h-64 text-center p-4 m-auto">
+                        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                        <h3 className="text-lg font-semibold text-foreground">Error</h3>
+                        <p className="text-muted-foreground">{errorMsg}</p>
+                      </div>
                     ) : (
-                      <div className="flex items-center justify-center h-64 text-muted-foreground">
-                        <p className="italic">Waiting for server response...</p>
-                      </div>
+                      <>
+                        <textarea
+                          className={`w-full flex-1 p-6 bg-transparent border-none resize-none focus:ring-0 text-lg leading-relaxed text-foreground ${
+                            activeTab !== "translation" ? "font-malayalam" : ""
+                          }`}
+                          value={
+                            activeTab === "corrected" ? correctedText :
+                            activeTab === "translation" ? translation :
+                            rawText
+                          }
+                          onChange={(e) => {
+                            if (activeTab === "corrected") setCorrectedText(e.target.value);
+                            if (activeTab === "translation") setTranslation(e.target.value);
+                          }}
+                          placeholder="No text detected."
+                        />
+                        
+                        {/* --- MALAYALAM KEYBOARD INTEGRATION --- */}
+                        {activeTab === "corrected" && (
+                          <div className="border-t border-border bg-muted/10 p-4 animate-in slide-in-from-bottom-2">
+                             <MalayalamKeyboard 
+                               onChange={setCorrectedText}
+                               inputName="malayalamInput"
+                               inputValue={correctedText}
+                             />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
