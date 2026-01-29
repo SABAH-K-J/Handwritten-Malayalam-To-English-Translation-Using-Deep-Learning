@@ -34,7 +34,7 @@ export function UploadCard({ onUpload, title, description }: UploadCardProps) {
     <div
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      className="group relative border-2 border-dashed border-border hover:border-primary/50 rounded-2xl p-12 transition-all duration-300 bg-card hover:bg-accent/20 cursor-pointer"
+      className="group relative border-2 border-dashed border-border hover:border-primary/50 rounded-2xl p-6 md:p-12 transition-all duration-300 bg-card hover:bg-accent/20 cursor-pointer"
     >
       <input
         type="file"

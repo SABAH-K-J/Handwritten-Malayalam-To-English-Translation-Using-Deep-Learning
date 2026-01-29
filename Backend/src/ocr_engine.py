@@ -87,13 +87,20 @@ class MalayalamOCR:
         return results
 
     def predict_crop(self, crop_cv2, crop_id=0, debug=False, debug_dir="debug_output"):
-        # 1. Convert to PIL
-        img_pil = Image.fromarray(crop_cv2).convert('L')
-        w, h = img_pil.size
-        
-        # 2. Resize with LANCZOS (High Quality)
+        # 1. Grayscale and Resize using OpenCV (Significantly Faster than PIL LANCZOS)
+        if len(crop_cv2.shape) == 3:
+            gray = cv2.cvtColor(crop_cv2, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = crop_cv2
+            
+        h, w = gray.shape
         new_w = max(1, int(w * (IMG_H / h)))
-        img_pil = img_pil.resize((new_w, IMG_H), Image.LANCZOS)
+        
+        # INTER_CUBIC is a good balance for OCR resizing (better than LINEAR, faster than LANCZOS)
+        resized_gray = cv2.resize(gray, (new_w, IMG_H), interpolation=cv2.INTER_CUBIC)
+        
+        # Convert to PIL for compatibility with existing transforms/pipeline involving to_tensor
+        img_pil = Image.fromarray(resized_gray)
         
         # --- DEBUG: Save individual word crop ---
         if debug:
@@ -111,12 +118,12 @@ class MalayalamOCR:
         with torch.no_grad():
             return self.decode_greedy(self.crnn(img_t))[0]
 
-    def run(self, image_path, crop_points=None, debug=True):
+    def run(self, image_path, crop_points=None, debug=False):
         print(f"Processing: {image_path}")
         original = cv2.imread(image_path)
         if original is None: return "Error loading image", "", ""
 
-        # Setup Debug Directory
+        # Setup Debug Directory - Only if debug is enabled
         debug_dir = "debug_output"
         if debug:
             if os.path.exists(debug_dir): shutil.rmtree(debug_dir)

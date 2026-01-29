@@ -2,10 +2,21 @@ import os
 import io
 import numpy as np
 import cv2
-from fastapi import FastAPI, File, UploadFile, Form
+import uuid
+import shutil
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
+
+# --- Configuration & Security ---
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB limit
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/bmp", "image/webp"]
+TEMP_UPLOAD_DIR = "temp"
+
+# Ensure temp directory exists securely
+if not os.path.exists(TEMP_UPLOAD_DIR):
+    os.makedirs(TEMP_UPLOAD_DIR, mode=0o700) # Only owner can read/write
 
 # --- PDF Generation Imports ---
 from reportlab.lib.pagesizes import letter
@@ -75,7 +86,15 @@ async def detect_corners_endpoint(file: UploadFile = File(...)):
     for the frontend editor to snap to the document.
     """
     try:
+        # Validate type
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+             return JSONResponse(status_code=400, content={"error": "Invalid file type."})
+
+        # Read into memory for detection (limited size check)
         contents = await file.read()
+        if len(contents) > MAX_FILE_SIZE:
+             return JSONResponse(status_code=413, content={"error": "File too large (Max 10MB)"})
+
         nparr = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
@@ -104,24 +123,42 @@ async def predict(
     file: UploadFile = File(...),
     crop_points: str = Form(None)
 ):
+    temp_file_path = None
     try:
-        # 1. Save uploaded file temporarily
-        temp_filename = f"temp_{file.filename}"
-        with open(temp_filename, "wb") as buffer:
-            buffer.write(await file.read())
+        # 1. Validation
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+             return JSONResponse(status_code=400, content={"error": "Invalid file type. Only images allowed."})
+        
+        # Check size (reading first chunk) - this is approximate as we read whole file below
+        # ideally we check Content-Length header but it can be spoofed.
+        # We will read and count.
+        
+        # 2. Secure Save
+        file_ext = file.filename.split('.')[-1] if '.' in file.filename else "jpg"
+        filename_secure = f"{uuid.uuid4()}.{file_ext}"
+        temp_file_path = os.path.join(TEMP_UPLOAD_DIR, filename_secure)
+        
+        file_size = 0
+        with open(temp_file_path, "wb") as buffer:
+            while True:
+                chunk = await file.read(1024 * 1024) # 1MB chunks
+                if not chunk:
+                    break
+                file_size += len(chunk)
+                if file_size > MAX_FILE_SIZE:
+                    buffer.close()
+                    os.remove(temp_file_path)
+                    return JSONResponse(status_code=413, content={"error": "File too large (Max 10MB)"})
+                buffer.write(chunk)
 
-        # 2. Run OCR (Now returns only 3 values)
+        # 3. Run OCR
         try:
-            full_text, corrected, translated = ocr_engine.run(temp_filename, crop_points=crop_points)
+            full_text, corrected, translated = ocr_engine.run(temp_file_path, crop_points=crop_points)
         except Exception as e:
             import traceback
             traceback.print_exc()
             return JSONResponse(status_code=500, content={"error": f"OCR Engine Failed: {str(e)}"})
         
-        # 3. Cleanup
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-
         return {
             "original_text": full_text,
             "corrected_text": corrected,
@@ -132,6 +169,14 @@ async def predict(
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
+        
+    finally:
+        # 4. Cleanup
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except:
+                pass
 
 # 5. Text-Only Translation Route
 @app.post("/translate")

@@ -1,6 +1,6 @@
-# --- Deep Learning Core ---
-torch
-torchvision
+# --- Deep Learning Core (Installed via Dockerfile for CPU optimization) ---
+# torch
+# torchvision
 numpy
 ultralytics
 

@@ -20,4 +20,14 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+        output: {
+            manualChunks: {
+                vendor: ['react', 'react-dom'],
+                ui: ['@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+            }
+        }
+    }
+  }
 }));
