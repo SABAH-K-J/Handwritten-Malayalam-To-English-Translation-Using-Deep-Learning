@@ -6,7 +6,13 @@ import unicodedata
 import pickle
 from symspellpy import SymSpell, Verbosity
 from transformers import pipeline
-from src.config import DICT_PATH, CACHE_DIR
+
+# Mock config if src.config is missing
+try:
+    from src.config import DICT_PATH, CACHE_DIR
+except ImportError:
+    DICT_PATH = "malayalam_dict.txt"  # Default fallback
+    CACHE_DIR = "./cache"
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,8 +34,6 @@ class PostProcessor:
         }
 
         # 3. Dynamic Suffix Rules (Pattern -> Replacement)
-        # These rules are only applied if the original word is NOT in the dictionary
-        # AND the replacement IS in the dictionary.
         self.SUFFIX_PATTERNS = [
             # --- Slang Fixes ---
             (r'ാടാ$', 'ാണ്'),    # "Enthinada" -> "Enthinanu"
@@ -38,8 +42,6 @@ class PostProcessor:
             (r'പ്പ$', 'പ്പോൾ'),   # "Ippo" -> "Ippol"
             
             # --- OCR Drop Fixes (The Fix for "Allenkila") ---
-            # Tries converting ending 'La', 'Ra', 'Na' to Chillus
-            # if the base word is invalid.
             (r'ല$', 'ൽ'),        # Fixes "അല്ലെങ്കില" -> "അല്ലെങ്കിൽ"
             (r'ള$', 'ൾ'),        # Fixes "അവള" -> "അവൾ"
             (r'ര$', 'ർ'),        # Fixes "അവര" -> "അവർ"
@@ -58,6 +60,7 @@ class PostProcessor:
         self.device = 0 if torch.cuda.is_available() else -1
         self.translator = None
         try:
+            logger.info(f"Loading Translator on device: {self.device}")
             self.translator = pipeline(
                 "translation", 
                 model="facebook/nllb-200-distilled-600M", 
@@ -65,27 +68,41 @@ class PostProcessor:
                 torch_dtype=torch.float16 if self.device == 0 else torch.float32,
                 framework="pt"
             )
-        except Exception:
-            logger.warning("Translator failed to load.")
+        except Exception as e:
+            logger.warning(f"Translator failed to load: {e}")
 
     def _load_dictionary_optimized(self):
+        if not os.path.exists(CACHE_DIR):
+            os.makedirs(CACHE_DIR)
+            
         cache_path = os.path.join(CACHE_DIR, "symspell_dict.pkl")
+        
+        # Try loading from cache
         if os.path.exists(cache_path):
             try:
-                with open(cache_path, "rb") as f: self.sym_spell = pickle.load(f)
+                with open(cache_path, "rb") as f: 
+                    self.sym_spell = pickle.load(f)
                 return
-            except Exception: pass 
+            except Exception: 
+                logger.warning("Cache load failed, rebuilding dictionary...")
 
+        # Load from text file
         if os.path.exists(DICT_PATH):
             if not self.sym_spell.load_dictionary(DICT_PATH, term_index=0, count_index=1, encoding="utf-8"):
+                # Fallback manual load if standard load fails
                 with open(DICT_PATH, 'r', encoding='utf-8') as f:
                     for line in f:
                         parts = line.strip().split()
                         if parts: self.sym_spell.create_dictionary_entry(parts[0], 1)
+            
+            # Save to cache
             try:
-                if not os.path.exists(CACHE_DIR): os.makedirs(CACHE_DIR)
-                with open(cache_path, "wb") as f: pickle.dump(self.sym_spell, f)
-            except Exception: pass
+                with open(cache_path, "wb") as f: 
+                    pickle.dump(self.sym_spell, f)
+            except Exception: 
+                pass
+        else:
+            logger.warning(f"Dictionary file not found at {DICT_PATH}")
 
     def normalize_structure(self, text):
         if not text: return ""
@@ -94,6 +111,7 @@ class PostProcessor:
         # Dynamic Chillu Conversion (Internal)
         for base, chillu in self.BASE_TO_CHILLU.items():
             exceptions = "".join(self.LIGATURE_EXCEPTIONS.get(base, [base]))
+            # Fix: Ensure exceptions are treated as characters set []
             pattern = f"{base}\u0D4D(?!([{exceptions}]|\u200D))"
             text = re.sub(pattern, chillu, text)
 
@@ -137,7 +155,8 @@ class PostProcessor:
             text = re.sub(r'(ന്നത്|ള്ളത്|ആണ്)\s', r'\1? ', text)
 
         text = re.sub(r'\s(കാരണം|പക്ഷേ)\s', r'. \1, ', text)
-        text = re.sub(r'(ആണ്|അല്ല|ഉണ്ട്|ഇല്ല)(?=\s)', r'\1. ', text)
+        # Fix: Ensure lookahead matches end of string or space
+        text = re.sub(r'(ആണ്|അല്ല|ഉണ്ട്|ഇല്ല)(?=(\s|$))', r'\1. ', text)
         return text
 
     def spell_check(self, text):
@@ -151,6 +170,7 @@ class PostProcessor:
             suggestions = self.sym_spell.lookup(word, Verbosity.TOP, max_edit_distance=2, include_unknown=True)
             if suggestions:
                 best = suggestions[0]
+                # Fix: Ensure we don't correct short acronyms aggressively
                 if len(word) > 3 and best.distance > 0:
                     corrected.append(best.term)
                 else:
@@ -177,15 +197,18 @@ class PostProcessor:
         # 5. Translate
         if self.translator:
             try:
+                # Add punctuation for better translation context if missing
                 inp = text_for_trans if text_for_trans[-1] in '.?!' else text_for_trans + "."
                 out = self.translator(inp, src_lang="mal_Mlym", tgt_lang="eng_Latn", max_length=256)
                 
                 translation = out[0]['translation_text']
+                # Remove artificial punctuation if source didn't have it
                 if not text_for_trans.endswith('.') and translation.endswith('.'):
                     translation = translation[:-1]
                 
                 return corrected_text, translation
-            except Exception:
+            except Exception as e:
+                logger.error(f"Translation error: {e}")
                 return corrected_text, "[Translation Failed]"
         
         return corrected_text, ""

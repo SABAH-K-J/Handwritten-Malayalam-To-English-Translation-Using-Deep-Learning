@@ -21,3 +21,5 @@ pydantic
 
 # --- Utilities ---
 requests
+gtts
+reportlab

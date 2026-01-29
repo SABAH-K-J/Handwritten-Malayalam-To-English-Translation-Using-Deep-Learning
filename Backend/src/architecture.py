@@ -1,4 +1,5 @@
 # src/architecture.py
+import torch
 import torch.nn as nn
 
 class ResNetBlock(nn.Module):
@@ -32,12 +33,11 @@ class CustomCRNN(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # --- KEY DIFFERENCE: WIDE ARCHITECTURE ---
-        # We only downsample width in Layer 2. Layers 3 & 4 keep width high.
+        # High-Res Configuration (Matches Training)
         self.layer1 = self._make_layer(64, 2, stride=1)
-        self.layer2 = self._make_layer(128, 2, stride=2)     # H/2, W/2
-        self.layer3 = self._make_layer(256, 2, stride=(2,1)) # H/4, W/2
-        self.layer4 = self._make_layer(512, 2, stride=(2,1)) # H/8, W/2
+        self.layer2 = self._make_layer(128, 2, stride=2)     
+        self.layer3 = self._make_layer(256, 2, stride=(2,1)) 
+        self.layer4 = self._make_layer(512, 2, stride=(2,1)) 
 
         self.last_conv = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=2, stride=(2,1), padding=0),
@@ -45,7 +45,7 @@ class CustomCRNN(nn.Module):
             nn.ReLU()
         )
         
-        # Updated RNN with Dropout (Matches your 93% Training)
+        # RNN Head (Matches Training)
         self.rnn = nn.Sequential(
             nn.LSTM(512, 256, bidirectional=True, batch_first=True, num_layers=2, dropout=0.5),
             nn.Linear(512, 256),
@@ -69,19 +69,20 @@ class CustomCRNN(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        # 1. Feature Extraction (CNN)
+        x = self.conv1(x); x = self.bn1(x); x = self.relu(x); x = self.maxpool(x)
+        x = self.layer1(x); x = self.layer2(x); x = self.layer3(x); x = self.layer4(x)
         x = self.last_conv(x)
+        
+        # 2. Reshape for RNN (Batch, Channels, Height, Width) -> (Batch, Width, Channels)
+        # Squeeze height (which should be 1) and permute
         x = x.squeeze(2).permute(0, 2, 1) 
-        x, _ = self.rnn[0](x)
-        x = self.rnn[1](x)
-        x = self.rnn[2](x)
-        x = self.rnn[3](x)
-        x = self.rnn[4](x)
+        
+        # 3. Sequence Modeling (RNN)
+        # We manually step through layers because nn.Sequential can't handle LSTM's tuple return
+        x, _ = self.rnn[0](x) # LSTM
+        x = self.rnn[1](x)    # Linear
+        x = self.rnn[2](x)    # ELU
+        x = self.rnn[3](x)    # Dropout
+        x = self.rnn[4](x)    # Linear
         return x

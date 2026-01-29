@@ -12,10 +12,11 @@ interface MalayalamKeyboardProps {
 
 export function MalayalamKeyboard({ onChange, inputName, inputValue }: MalayalamKeyboardProps) {
   const [layoutName, setLayoutName] = useState("default");
-  const [isVisible, setIsVisible] = useState(true); // Default to visible to test
+  const [isVisible, setIsVisible] = useState(false);
+  
   const keyboard = useRef<any>(null);
 
-  // Sync the external text (OCR output) with the keyboard's internal memory
+  // 1. Sync external text (OCR output) when it changes while keyboard is open
   useEffect(() => {
     if (keyboard.current) {
       keyboard.current.setInput(inputValue);
@@ -28,8 +29,6 @@ export function MalayalamKeyboard({ onChange, inputName, inputValue }: Malayalam
     }
   };
 
-  // Custom Malayalam Layout (Inscript Standard)
-  // Added '◌' to vowels so they render visibly on the keys
   const malayalamLayout = {
     default: [
       "ൊ ോ ൌ ാ ി ീ ു ൂ ൃ െ േ ൈ",
@@ -54,14 +53,28 @@ export function MalayalamKeyboard({ onChange, inputName, inputValue }: Malayalam
   return (
     <div className="relative">
         <style>{`
-          /* FORCE BLACK TEXT ON KEYS */
-          .hg-button {
-            color: #000000 !important;
-            font-family: 'Arial', sans-serif; /* Ensure font supports unicode */
-            font-size: 1.2rem;
-            font-weight: bold;
+          .hg-theme-default {
+            background-color: transparent !important;
+            padding: 5px;
           }
-          /* Fix Diacritic rendering issues */
+          .hg-button {
+            background-color: hsl(var(--card)) !important;
+            border-bottom: 3px solid hsl(var(--border)) !important;
+            color: hsl(var(--foreground)) !important;
+            font-family: 'Arial', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.1s ease;
+          }
+          .hg-button:active {
+            transform: translateY(2px);
+            border-bottom: 1px solid hsl(var(--border)) !important;
+            background-color: hsl(var(--accent)) !important;
+          }
+          .hg-functionBtn {
+            background-color: hsl(var(--muted)) !important;
+            color: hsl(var(--muted-foreground)) !important;
+          }
           .hg-button span {
              pointer-events: none;
           }
@@ -76,19 +89,25 @@ export function MalayalamKeyboard({ onChange, inputName, inputValue }: Malayalam
                 className={isVisible ? "bg-primary/10" : ""}
             >
                 {isVisible ? <X className="w-4 h-4 mr-2" /> : <KeyboardIcon className="w-4 h-4 mr-2" />}
-                {isVisible ? "Hide Keyboard" : "Malayalam Keyboard"}
+                {isVisible ? "Hide Keyboard" : "Show Malayalam Keyboard"}
             </Button>
         </div>
 
         {/* The Keyboard */}
         {isVisible && (
-            <div className="border rounded-xl p-2 bg-gray-100 shadow-lg animate-in fade-in slide-in-from-bottom-4">
+            <div className="border rounded-xl p-2 bg-muted/30 shadow-lg animate-in fade-in slide-in-from-bottom-4">
                 <Keyboard
-                    keyboardRef={(r) => (keyboard.current = r)}
+                    keyboardRef={(r) => {
+                        keyboard.current = r;
+                        // CRITICAL FIX: Force sync immediately when the keyboard mounts
+                        if (r && inputValue) {
+                            r.setInput(inputValue);
+                        }
+                    }}
                     layoutName={layoutName}
                     layout={malayalamLayout}
                     onChange={(input) => {
-                        onChange(input); // Send new text back to parent
+                        onChange(input);
                     }}
                     onKeyPress={onKeyPress}
                     inputName={inputName}

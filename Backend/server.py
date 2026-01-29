@@ -1,6 +1,8 @@
 import os
 import io
-from fastapi import FastAPI, File, UploadFile
+import numpy as np
+import cv2
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -16,6 +18,7 @@ from gtts import gTTS
 # --- IMPORTS FROM NEW STRUCTURE ---
 from src.ocr_engine import MalayalamOCR
 from src.config import TEMP_DIR
+from src.preprocessor import get_document_corners
 
 # 1. Initialize the App
 app = FastAPI(title="Malayalam OCR API", description="Production Ready OCR Backend")
@@ -64,21 +67,55 @@ def load_model():
     except Exception as e:
         print(f"CRITICAL ERROR : Could not load model.\n{e}")
 
-# 4. Image OCR Route
+# --- NEW ROUTE: Corner Detection for Auto-Crop ---
+@app.post("/detect-corners")
+async def detect_corners_endpoint(file: UploadFile = File(...)):
+    """
+    Returns normalized coordinates [[x,y], [x,y], [x,y], [x,y]]
+    for the frontend editor to snap to the document.
+    """
+    try:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Handle EXIF rotation (Critical for mobile uploads)
+        try:
+            from PIL import Image, ImageOps
+            pil_image = Image.open(io.BytesIO(contents))
+            pil_image = ImageOps.exif_transpose(pil_image)
+            image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        except:
+            pass
+
+        points = get_document_corners(image)
+        return {"points": points}
+        
+    except Exception as e:
+        print(f"Corner detection failed: {e}")
+        # Default to a centered rectangle
+        return {"points": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]}
+
+# 4. Image OCR Route (Updated for Cropping & Lens)
+# ... (Keep all imports and previous routes like /detect-corners) ...
+
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(
+    file: UploadFile = File(...),
+    crop_points: str = Form(None)
+):
     try:
         # 1. Save uploaded file temporarily
         temp_filename = f"temp_{file.filename}"
         with open(temp_filename, "wb") as buffer:
             buffer.write(await file.read())
 
-        # 2. Run OCR (Wrap in try-except to catch inner errors)
+        # 2. Run OCR (Now returns only 3 values)
         try:
-            full_text, corrected, translated = ocr_engine.run(temp_filename)
+            full_text, corrected, translated = ocr_engine.run(temp_filename, crop_points=crop_points)
         except Exception as e:
             import traceback
-            traceback.print_exc()  # <--- PRINT THE ERROR TO CONSOLE
+            traceback.print_exc()
             return JSONResponse(status_code=500, content={"error": f"OCR Engine Failed: {str(e)}"})
         
         # 3. Cleanup
@@ -166,7 +203,7 @@ async def generate_pdf_endpoint(request: PDFRequest):
         headers={"Content-Disposition": "attachment; filename=translation.pdf"}
     )
 
-# 7. Text-to-Speech Route (NEW)
+# 7. Text-to-Speech Route
 @app.post("/tts")
 async def tts_endpoint(request: TTSRequest):
     """
