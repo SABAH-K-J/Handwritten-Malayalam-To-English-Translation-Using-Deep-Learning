@@ -27,14 +27,6 @@ yarn-error.log*
 # ========================
 # 3. LARGE MODELS (CRITICAL)
 # ========================
-# GitHub rejects files > 100MB. Ignore your weights.
-*.pt
-*.pth
-*.onnx
-*.bin
-# Ignore specific folders if you created them
-BACKEND/models/*.pt
-BACKEND/models/*.pth
 
 # ========================
 # 4. DATA & TEMP FILES

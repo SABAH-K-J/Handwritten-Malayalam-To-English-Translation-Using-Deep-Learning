@@ -9,7 +9,8 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Install system dependencies required for opencv, kenlm, and other libraries
 # Clean up apt cache to reduce image size
-RUN apt-get update && apt-get install -y \
+# Added --fix-missing and --no-install-recommends for more robust builds
+RUN apt-get update && apt-get install -y --fix-missing --no-install-recommends \
     build-essential \
     cmake \
     git \
