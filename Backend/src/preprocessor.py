@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 import json
 
-# --- 1. GEOMETRY HELPERS ---
+# ==========================================
+# 1. GEOMETRY HELPERS
+# ==========================================
 
 def order_points(pts):
     """Orders coordinates: [TL, TR, BR, BL]"""
@@ -37,7 +39,9 @@ def four_point_transform(image, pts):
     M = cv2.getPerspectiveTransform(rect, dst)
     return cv2.warpPerspective(image, M, (maxWidth, maxHeight))
 
-# --- 2. FRONTEND INTEGRATION HELPERS ---
+# ==========================================
+# 2. FRONTEND INTEGRATION HELPERS
+# ==========================================
 
 def manual_crop(image, points_json):
     """Applies crop from Frontend Crop Editor."""
@@ -52,10 +56,7 @@ def manual_crop(image, points_json):
         return image
 
 def get_document_corners(image):
-    """
-    Auto-detects document corners for the Frontend.
-    """
-    # Resize for speed/consistency
+    """Auto-detects document corners for the Frontend."""
     ratio = image.shape[0] / 600.0
     small = cv2.resize(image, (int(image.shape[1] / ratio), 600))
     
@@ -63,29 +64,23 @@ def get_document_corners(image):
     blurred = cv2.GaussianBlur(gray, (11, 11), 0) 
     edges = cv2.Canny(blurred, 75, 200)
     
-    # Connect gaps in edges
     kernel = np.ones((5, 5), np.uint8)
     dilated = cv2.dilate(edges, kernel, iterations=2)
     
     cnts, _ = cv2.findContours(dilated, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
     
-    # Default fallback: a box slightly inside the image
     default_points = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]
     total_area = small.shape[0] * small.shape[1]
 
     for c in cnts:
-        # Ignore small areas (<20% of screen)
-        if cv2.contourArea(c) < (total_area * 0.20):
-            continue
-
+        if cv2.contourArea(c) < (total_area * 0.20): continue
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         
         if len(approx) == 4:
             pts = approx.reshape(4, 2)
             rect = order_points(pts)
-            
             h_small, w_small = small.shape[:2]
             normalized_pts = []
             for pt in rect:
@@ -94,39 +89,78 @@ def get_document_corners(image):
             
     return default_points
 
-# --- 3. CROP CLEANUP (LATE PREPROCESSING) ---
+# ==========================================
+# 3. CROP CLEANUP (ANTI-PIXELATION PIPELINE)
+# ==========================================
 
 def preprocess_crop_for_ocr(crop_img):
     """
-    Cleans a SINGLE detected text box for the CRNN model.
-    Pipeline: Grayscale -> Shadow Removal -> Binarization -> Noise Clean
+    Cleans a SINGLE detected text box.
+    Uses 'Super-Resolution' (Upscaling) + Adaptive Thresholding to fix pixelation.
+    Returns: Black Text on White Background.
     """
+    # 1. Grayscale
     if len(crop_img.shape) == 3:
         gray = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
     else:
         gray = crop_img
 
-    # 1. Remove Shadows / Normalize Lighting
-    dilated = cv2.dilate(gray, np.ones((7, 7), np.uint8))
-    bg = cv2.medianBlur(dilated, 21)
-    diff = 255 - cv2.absdiff(gray, bg)
-    normalized = cv2.normalize(diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+    # 2. UPSCALE (The Anti-Pixelation Fix)
+    # We blow the image up to ~96px height. This "invents" pixels between the 
+    # jagged edges using cubic interpolation, making the text smooth.
+    target_height = 96
+    h, w = gray.shape
+    scale = target_height / float(h)
+    new_w = int(w * scale)
+    # INTER_CUBIC is slower but best for smoothing jagged edges
+    gray_highres = cv2.resize(gray, (new_w, target_height), interpolation=cv2.INTER_CUBIC)
 
-    # 2. Binarize (High Contrast for Model)
-    _, binarized = cv2.threshold(normalized, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    # 3. SMOOTHING (Denoise)
+    # Bilateral filter removes paper noise but keeps text edges sharp.
+    # d=9, sigmaColor=75, sigmaSpace=75 are standard good values.
+    smoothed = cv2.bilateralFilter(gray_highres, 9, 75, 75)
 
-    # 3. Clean Noise (Pepper Noise)
-    inverted = cv2.bitwise_not(binarized) 
+    # 4. BINARIZE (Adaptive)
+    # Gaussian threshold adapts to lighting (shadows vs bright spots).
+    # THRESH_BINARY gives: Pixels > thresh = 255 (White BG), Pixels < thresh = 0 (Black Text).
+    # BlockSize=31 (large area context), C=10 (sensitivity).
+    binarized = cv2.adaptiveThreshold(
+        smoothed, 255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY, 
+        31, 10
+    )
+
+    # 5. REMOVE NOISE (Despeckle)
+    # Since text is Black (0) and BG is White (255), we invert to find connected components (White text).
+    inverted = cv2.bitwise_not(binarized)
+    
+    # Analyze blobs
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(inverted, connectivity=8)
+    
+    # Create a mask of "Valid Text Blobs"
     safe_zone_mask = np.zeros_like(inverted)
     
-    # Filter out tiny noise specks (area < 10 pixels)
+    # Filter: Keep blobs that are larger than 15 pixels (removes stray dots)
     for i in range(1, num_labels):
-        x, y, w, h, area = stats[i]
-        if area > 10: 
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area > 15: 
             safe_zone_mask[labels == i] = 255
             
-    kept_pixels = cv2.bitwise_and(inverted, inverted, mask=safe_zone_mask)
-    final_clean = cv2.bitwise_not(kept_pixels)
+    # Apply mask
+    cleaned_inverted = cv2.bitwise_and(inverted, inverted, mask=safe_zone_mask)
+    
+    # Flip back to standard: Black Text on White BG
+    final_clean = cv2.bitwise_not(cleaned_inverted)
 
-    return final_clean
+    # 6. PADDING
+    # Add a comfortable white border so text doesn't touch edges
+    padding = 10
+    final_output = cv2.copyMakeBorder(
+        final_clean, 
+        padding, padding, padding, padding, 
+        cv2.BORDER_CONSTANT, 
+        value=[255, 255, 255] # White
+    )
+
+    return final_output

@@ -34,7 +34,9 @@ yarn-error.log*
 *.log
 *.sqlite
 # Ignore generated images from your server
-BACKEND/temp/
+Backend/models/
+Backend/debug_output/
+Backend/temp/
 *.jpg
 *.png
 *.jpeg

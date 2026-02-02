@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import uuid
 import shutil
+import logging
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -28,8 +29,29 @@ from gtts import gTTS
 
 # --- IMPORTS FROM NEW STRUCTURE ---
 from src.ocr_engine import MalayalamOCR
-from src.config import TEMP_DIR
+from src.config import TEMP_DIR, DEBUG_MODE
 from src.preprocessor import get_document_corners
+
+# --- COLOR LOGGING HELPER ---
+class Log:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+
+    @staticmethod
+    def process(msg): print(f"{Log.CYAN}{Log.BOLD}[PROCESS]{Log.RESET} {msg}")
+    @staticmethod
+    def info(msg):    print(f"{Log.BLUE}[INFO]{Log.RESET}    {msg}")
+    @staticmethod
+    def success(msg): print(f"{Log.GREEN}{Log.BOLD}[SUCCESS]{Log.RESET} {msg}")
+    @staticmethod
+    def warn(msg):    print(f"{Log.YELLOW}[WARN]{Log.RESET}    {msg}")
+    @staticmethod
+    def error(msg):   print(f"{Log.RED}{Log.BOLD}[ERROR]{Log.RESET}   {msg}")
 
 # 1. Initialize the App
 app = FastAPI(title="Malayalam OCR API", description="Production Ready OCR Backend")
@@ -66,17 +88,17 @@ ocr_engine = None
 @app.on_event("startup")
 def load_model():
     global ocr_engine
-    print("-----------------------------------")
-    print("PROCESS : Server starting...")
-    print("PROCESS : Loading AI Models (YOLO + CRNN + KenLM + NLLB)")
+    print("\n" + "="*50)
+    Log.process("Server starting...")
+    Log.process("Loading AI Models (YOLO + CRNN + KenLM + NLLB)")
     
     try:
         # Initializes the robust MalayalamOCR class from src/ocr_engine.py
         ocr_engine = MalayalamOCR()
-        print(" SUCCESS : Models Loaded Successfully!")
-        print("-----------------------------------")
+        Log.success("Models Loaded Successfully!")
+        print("="*50 + "\n")
     except Exception as e:
-        print(f"CRITICAL ERROR : Could not load model.\n{e}")
+        Log.error(f"CRITICAL ERROR : Could not load model.\n{e}")
 
 # --- NEW ROUTE: Corner Detection for Auto-Crop ---
 @app.post("/detect-corners")
@@ -108,16 +130,15 @@ async def detect_corners_endpoint(file: UploadFile = File(...)):
             pass
 
         points = get_document_corners(image)
+        Log.info("Document corners detected.")
         return {"points": points}
         
     except Exception as e:
-        print(f"Corner detection failed: {e}")
+        Log.warn(f"Corner detection failed: {e}")
         # Default to a centered rectangle
         return {"points": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]}
 
 # 4. Image OCR Route (Updated for Cropping & Lens)
-# ... (Keep all imports and previous routes like /detect-corners) ...
-
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
@@ -128,10 +149,6 @@ async def predict(
         # 1. Validation
         if file.content_type not in ALLOWED_IMAGE_TYPES:
              return JSONResponse(status_code=400, content={"error": "Invalid file type. Only images allowed."})
-        
-        # Check size (reading first chunk) - this is approximate as we read whole file below
-        # ideally we check Content-Length header but it can be spoofed.
-        # We will read and count.
         
         # 2. Secure Save
         file_ext = file.filename.split('.')[-1] if '.' in file.filename else "jpg"
@@ -153,10 +170,11 @@ async def predict(
 
         # 3. Run OCR
         try:
-            full_text, corrected, translated = ocr_engine.run(temp_file_path, crop_points=crop_points)
+            full_text, corrected, translated = ocr_engine.run(temp_file_path, crop_points=crop_points, debug=DEBUG_MODE)
         except Exception as e:
             import traceback
             traceback.print_exc()
+            Log.error(f"OCR Engine Failed: {str(e)}")
             return JSONResponse(status_code=500, content={"error": f"OCR Engine Failed: {str(e)}"})
         
         return {
@@ -168,6 +186,7 @@ async def predict(
     except Exception as e:
         import traceback
         traceback.print_exc()
+        Log.error(f"Prediction Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
         
     finally:
@@ -201,6 +220,7 @@ async def translate_text_only(request: TranslationRequest):
         })
 
     except Exception as e:
+        Log.error(f"Translation API Error: {e}")
         return JSONResponse(content={
             "status": "error",
             "message": str(e)
@@ -270,7 +290,7 @@ async def tts_endpoint(request: TTSRequest):
         return StreamingResponse(buffer, media_type="audio/mp3")
 
     except Exception as e:
-        print(f"TTS Error: {e}")
+        Log.error(f"TTS Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # 8. Health Check
