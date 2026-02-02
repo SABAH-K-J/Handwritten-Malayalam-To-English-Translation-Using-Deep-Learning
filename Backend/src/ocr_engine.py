@@ -3,8 +3,8 @@ import numpy as np
 import torch
 import os
 import shutil
-import sys
-from PIL import Image
+import json
+from PIL import Image, ImageOps
 from ultralytics import YOLO
 
 # Imports
@@ -14,7 +14,7 @@ from src.postprocessor import PostProcessor
 from src.decoder import IntelligentDecoder 
 from src.preprocessor import manual_crop, preprocess_crop_for_ocr
 
-# --- COLOR LOGGING HELPER ---
+# --- LOGGING ---
 class Log:
     RESET = "\033[0m"
     BOLD = "\033[1m"
@@ -23,7 +23,6 @@ class Log:
     YELLOW = "\033[93m"
     BLUE = "\033[94m"
     CYAN = "\033[96m"
-
     @staticmethod
     def process(msg): print(f"{Log.CYAN}{Log.BOLD}[PROCESS]{Log.RESET} {msg}")
     @staticmethod
@@ -38,7 +37,7 @@ class Log:
 class MalayalamOCR:
     def __init__(self):
         print("\n" + "="*50)
-        Log.process("Initializing OCR Engine (Smart Mode)")
+        Log.process("Initializing OCR Engine (Training-Matched Mode)")
         
         # 1. Load Vocab
         self.itos, self.stoi = self.build_vocab(TRAIN_LABEL)
@@ -55,8 +54,6 @@ class MalayalamOCR:
                      state_dict = checkpoint['state_dict']
                 else:
                      state_dict = checkpoint
-                
-                # Clean 'module.' prefix if present
                 new_state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
                 self.crnn.load_state_dict(new_state_dict)
                 self.crnn.eval()
@@ -66,29 +63,20 @@ class MalayalamOCR:
         else:
             Log.error(f"Model file missing at {CRNN_PATH}")
 
-        # 3. Initialize Smart Decoder (KenLM)
-        Log.process("Initializing Intelligent Decoder (KenLM)...")
-        
-        # Validate Lexicon quietly
-        if not os.path.exists(LEXICON_PATH):
-            Log.error(f"Lexicon missing at {LEXICON_PATH}")
-        
+        # 3. Initialize Decoder
+        Log.process("Initializing Intelligent Decoder...")
         decoder_vocab = list(self.itos)
-        if decoder_vocab[0] == '<BLANK>':
-            decoder_vocab[0] = "" 
-            
+        if decoder_vocab[0] == '<BLANK>': decoder_vocab[0] = "" 
         self.decoder = IntelligentDecoder(
             char_list=decoder_vocab,
             lm_path=LM_PATH,
             lexicon_path=LEXICON_PATH
         )
 
-        # 4. Load YOLO & Post-Processor
+        # 4. Load YOLO
         Log.process("Loading YOLO & Post-Processor...")
-        # Suppress YOLO verbose output
         self.yolo = YOLO(YOLO_PATH)
         self.post_processor = PostProcessor()
-        
         Log.success("OCR Engine Ready!")
         print("="*50 + "\n")
 
@@ -120,108 +108,118 @@ class MalayalamOCR:
                     found = True
                     break
             if not found: lines.append([box])
-        
         sorted_boxes = []
         for line in lines:
             line.sort(key=lambda b: b[0])
             sorted_boxes.extend(line)
         return sorted_boxes
 
-    def predict_crop(self, crop_cv2, crop_id=0, debug=False, debug_dir="debug_output"):
-        # 1. Grayscale
-        if len(crop_cv2.shape) == 3:
-            gray = cv2.cvtColor(crop_cv2, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = crop_cv2
-            
-        # 2. Resize maintaining aspect ratio to fixed height
-        h, w = gray.shape
-        new_w = max(1, int(w * (IMG_H / h)))
-        resized_gray = cv2.resize(gray, (new_w, IMG_H), interpolation=cv2.INTER_CUBIC)
+    def predict_crop(self, processed_crop, crop_id=0, debug=False, debug_dir="debug_output"):
+        # processed_crop is already (0-1) float32 from preprocessor
         
-        # 3. Normalize & Tensor Setup
-        img_arr = resized_gray.astype(np.float32) / 255.0
-        img_arr = 1.0 - img_arr 
+        # INVERSION CHECK: 
+        # Standard CRNNs expect text to be "signal" (1.0) and bg to be "noise" (0.0).
+        # Your preprocessor returns White BG (1.0) and Black Text (0.0).
+        # So we invert here to match standard Tensor inputs.
+        img_arr = 1.0 - processed_crop
+        
         img_t = torch.from_numpy(img_arr).unsqueeze(0).unsqueeze(0).to(DEVICE)
         
         if debug:
-            cv2.imwrite(os.path.join(debug_dir, f"crop_{crop_id}.png"), resized_gray)
+            # Save the exact input the model sees (inverted back for visual check)
+            visual_check = (processed_crop * 255).astype(np.uint8)
+            cv2.imwrite(os.path.join(debug_dir, f"crop_{crop_id}.png"), visual_check)
         
-        # 4. Inference
         with torch.no_grad():
             preds = self.crnn(img_t) 
             logits = preds.cpu().detach().numpy()[0]
-            # Smart Decode
             text = self.decoder.decode(logits)
             return text
+
+    def smart_manual_crop(self, image, points_json, scale_factor=1.0):
+        try:
+            pts = np.array(json.loads(points_json), dtype="float32")
+            h, w = image.shape[:2]
+            if np.max(pts) <= 1.0:
+                pts[:, 0] *= w
+                pts[:, 1] *= h
+            else:
+                pts *= scale_factor
+            return manual_crop(image, json.dumps(pts.tolist()))
+        except:
+            return image
 
     def run(self, image_path, crop_points=None, debug=False):
         Log.info(f"Processing Image: {os.path.basename(image_path)}")
         
-        original = cv2.imread(image_path)
-        if original is None: 
-            Log.error("Could not read image file.")
-            return "Error loading image", "", ""
+        # 1. Load Image
+        try:
+            pil_image = Image.open(image_path)
+            pil_image = ImageOps.exif_transpose(pil_image) 
+            original = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        except:
+            original = cv2.imread(image_path)
+        
+        if original is None: return "Error loading image", "", ""
+
+        # 2. Scale Guard (Keep original high res for YOLO)
+        h, w = original.shape[:2]
+        target_width = 1800
+        scale_factor = 1.0
+        if w < target_width:
+            scale_factor = target_width / w
+            scale_factor = min(scale_factor, 4.0) 
+            original = cv2.resize(original, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_CUBIC)
+
+        # 3. Crop
+        if crop_points:
+            detection_input = self.smart_manual_crop(original, crop_points, scale_factor)
+        else:
+            detection_input = original
 
         # Setup Debug
         debug_dir = "debug_output"
         if debug:
             if os.path.exists(debug_dir): shutil.rmtree(debug_dir)
             os.makedirs(debug_dir)
-            cv2.imwrite(os.path.join(debug_dir, "0_original.jpg"), original)
+            cv2.imwrite(os.path.join(debug_dir, "0_input.jpg"), detection_input)
 
-        # 1. Crop
-        if crop_points:
-            Log.info("Applying Manual Crop...")
-            detection_input = manual_crop(original, crop_points)
-        else:
-            detection_input = original
-
-        if debug:
-            cv2.imwrite(os.path.join(debug_dir, "1_detection_input.jpg"), detection_input)
-
-        # 2. Detect (YOLO)
+        # 4. Detect (YOLO)
+        # Feed the RAW, COLOR image to YOLO (Best for detection)
         results = self.yolo.predict(detection_input, conf=0.5, verbose=False)
         boxes = []
         for r in results:
             for box in r.boxes.xyxy.cpu().numpy():
                 boxes.append(box.astype(int))
         
-        if not boxes: 
-            Log.warn("No text detected by YOLO.")
-            return "No text detected.", "", ""
+        if not boxes: return "No text detected.", "", ""
         
-        # 3. Recognize (CRNN + KenLM)
+        # 5. Recognize (CRNN)
         boxes = self.sort_boxes(boxes) 
         full_text_list = []
         
-        Log.info(f"Detected {len(boxes)} text regions. Starting Recognition...")
-
-        if debug:
-            debug_img = detection_input.copy()
-            for (x1, y1, x2, y2) in boxes:
-                cv2.rectangle(debug_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.imwrite(os.path.join(debug_dir, "2_boxes.jpg"), debug_img)
+        Log.info(f"Detected {len(boxes)} words.")
 
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             pad = 5
             h_img, w_img = detection_input.shape[:2]
+            y1_safe, y2_safe = max(0, y1-pad), min(h_img, y2+pad)
+            x1_safe, x2_safe = max(0, x1-pad), min(w_img, x2+pad)
             
-            # Crop
-            crop_raw = detection_input[max(0, y1-pad):min(h_img, y2+pad), max(0, x1-pad):min(w_img, x2+pad)]
+            # Crop RAW image
+            crop_raw = detection_input[y1_safe:y2_safe, x1_safe:x2_safe]
             
-            # Preprocess (Fix Pixelation)
-            clean_crop = preprocess_crop_for_ocr(crop_raw)
+            # Use the NEW Training-Matched Preprocessor
+            # We set target_h to 32 (standard) or 64 (high-res), adjust if your model is specifically 32 or 64.
+            # I set it to 32 here as that's the most common default for CRNNs.
+            processed_crop = preprocess_crop_for_ocr(crop_raw, target_h=IMG_H, target_w=128)
             
-            # Predict
-            text = self.predict_crop(clean_crop, crop_id=i, debug=debug, debug_dir=debug_dir)
+            text = self.predict_crop(processed_crop, crop_id=i, debug=debug, debug_dir=debug_dir)
             full_text_list.append(text)
             
         smart_sentence = " ".join(full_text_list)
-        Log.success("Recognition Complete.")
         
-        # 4. Translate
+        # 6. Translate
         corrected, translated = self.post_processor.process(smart_sentence)
-        Log.success(f"Final Output: {translated[:50]}...")
         
         return smart_sentence, corrected, translated
