@@ -21,11 +21,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    minify: 'terser',
+    cssMinify: true,
     rollupOptions: {
         output: {
             manualChunks: {
-                vendor: ['react', 'react-dom'],
-                ui: ['@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+                vendor: ['react', 'react-dom', 'react-router-dom'],
+                ui: ['@radix-ui/react-slot', 'class-variance-authority', 'clsx', 'tailwind-merge', 'lucide-react'],
+                query: ['@tanstack/react-query'],
             }
         }
     }

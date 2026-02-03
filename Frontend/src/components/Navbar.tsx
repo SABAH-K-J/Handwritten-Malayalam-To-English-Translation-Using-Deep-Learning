@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Scan, Home, Menu, X } from "lucide-react";
+import { Moon, Sun, Scan, Home, Menu, X, BookOpen } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
 import { useState } from "react";
@@ -16,6 +16,7 @@ export function Navbar() {
   const navLinks = [
     { to: "/", label: "Home", icon: Home },
     { to: "/scanner", label: "Scanner", icon: Scan },
+    { to: "/learn-more", label: "Learn More", icon: BookOpen },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -26,32 +27,33 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Scan className="w-5 h-5 text-primary" />
-            </div>
+            <img 
+              src="/1000161394.png" 
+              alt="Malayalam OCR Logo" 
+              className="w-10 h-10 rounded-xl object-contain group-hover:opacity-80 transition-opacity"
+            />
             <span className="font-display font-bold text-xl text-foreground">
               മലയാളം<span className="text-primary">OCR</span>
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-2">
-            {navLinks.map((link) => (
-              <Link key={link.to} to={link.to}>
-                <Button
-                  variant={isActive(link.to) ? "default" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
-          </div>
+          {/* Desktop Navigation & Actions */}
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link key={link.to} to={link.to}>
+                  <Button
+                    variant={isActive(link.to) ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <link.icon className="w-4 h-4" />
+                    {link.label}
+                  </Button>
+                </Link>
+              ))}
+            </div>
 
-          {/* Theme Toggle & Mobile Menu */}
-          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"

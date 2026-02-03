@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   Camera, ArrowLeft, Sparkles, FileText, Languages, 
   ScanText, Copy, Check, Upload, Zap, AlertCircle, 
-  Download, RefreshCw, Volume2, Loader2
+  Download, RefreshCw, Volume2, Loader2, Shield
 } from "lucide-react";
 
 type TabType = "corrected" | "translation" | "raw";
@@ -202,26 +202,77 @@ export default function Scanner() {
       <div className="max-w-7xl mx-auto w-full">
         {!uploadedImage || showCropper ? (
             /* --- UPLOAD SCREEN --- */
-            <div className="min-h-[70vh] flex flex-col items-center justify-center">
-             <div className="w-full max-w-3xl">
-               <div className="text-center mb-8 lg:mb-12 animate-fade-in">
-                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-6"><Zap className="w-3.5 h-3.5" /> Ready to Scan</div>
-                 <h1 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-4">Upload Your Document</h1>
-                 <p className="text-muted-foreground text-base md:text-lg">Drop an image or use your camera to capture Malayalam text</p>
+            <div className="min-h-[75vh] flex flex-col items-center justify-center relative w-full">
+             
+             {/* Decorative Background Elements */}
+             <div className="absolute top-10 left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl -z-10 animate-pulse" />
+             <div className="absolute bottom-10 right-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl -z-10 animate-pulse delay-700" />
+             
+             <div className="w-full max-w-4xl px-4">
+               <div className="text-center mb-10 animate-fade-in relative">
+                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20 text-primary text-sm font-semibold mb-6 shadow-sm backdrop-blur-sm">
+                    <Sparkles className="w-4 h-4" /> 
+                    Ready to digitize
+                 </div>
+                 <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tight text-foreground mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                   Capture Your Moment
+                 </h1>
+                 <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                   Transform handwritten Malayalam notes into digital text instantly. <br className="hidden md:block"/>
+                   Secure, fast, and accurate.
+                 </p>
                </div>
-               <div className="grid md:grid-cols-2 gap-4 lg:gap-6 animate-slide-up">
-                 <label className="group relative cursor-pointer">
-                   <input type="file" accept="image/*" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                   <div className="h-48 md:h-64 rounded-3xl border-2 border-dashed border-border bg-card hover:border-primary/50 hover:bg-accent/20 transition-all duration-300 flex flex-col items-center justify-center p-6">
-                     <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20"><Upload className="w-6 h-6 md:w-8 md:h-8 text-primary" /></div>
-                     <h3 className="font-display font-semibold text-lg text-foreground mb-1">Upload File</h3>
+               
+               <div className="grid md:grid-cols-2 gap-6 animate-slide-up relative z-10 text-left">
+                 {/* Upload Card */}
+                 <label className="group relative cursor-pointer w-full">
+                   <input type="file" accept="image/*" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+                   <div className="h-64 rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+                     {/* REMOVED: Overlay div */}
+                     
+                     <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 relative z-10">
+                        <Upload className="w-10 h-10 text-primary" />
+                     </div>
+                     <h3 className="font-display font-bold text-xl text-foreground mb-2 relative z-10">Upload Image</h3>
+                     <p className="text-sm text-muted-foreground relative z-10 max-w-[200px] mx-auto">
+                        Drag & drop or click to browse files
+                     </p>
+                     <div className="mt-4 flex gap-2 justify-center opacity-60 relative z-10">
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded">JPG</span>
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded">PNG</span>
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded">HEIC</span>
+                     </div>
                    </div>
                  </label>
-                 <button onClick={() => setShowCamera(true)} className="group h-48 md:h-64 rounded-3xl border-2 border-dashed border-border bg-card hover:border-primary/50 hover:bg-accent/20 transition-all duration-300 flex flex-col items-center justify-center p-6">
-                   <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20"><Camera className="w-6 h-6 md:w-8 md:h-8 text-primary" /></div>
-                   <h3 className="font-display font-semibold text-lg text-foreground mb-1">Use Camera</h3>
+
+                 {/* Camera Card */}
+                 <button onClick={() => setShowCamera(true)} className="group h-64 w-full rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex flex-col items-center justify-center p-8 relative overflow-hidden">
+                   {/* REMOVED: Overlay div */}
+                   
+                   <div className="w-20 h-20 rounded-2xl bg-secondary/80 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 relative z-10">
+                     <Camera className="w-10 h-10 text-primary" />
+                   </div>
+                   <h3 className="font-display font-bold text-xl text-foreground mb-2 relative z-10">Use Camera</h3>
+                   <p className="text-sm text-muted-foreground relative z-10 max-w-[200px] mx-auto">
+                     Capture directly from your device
+                   </p>
+                    <div className="mt-4 flex gap-2 justify-center opacity-60 relative z-10">
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded">Mobile</span>
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded">Webcam</span>
+                    </div>
                  </button>
                </div>
+
+                {/* Footer Info */}
+               <div className="mt-12 flex justify-center gap-8 text-muted-foreground/60 text-sm animate-fade-in delay-200">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> Secure Processing
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Instant OCR
+                  </div>
+               </div>
+
              </div>
            </div>
         ) : (

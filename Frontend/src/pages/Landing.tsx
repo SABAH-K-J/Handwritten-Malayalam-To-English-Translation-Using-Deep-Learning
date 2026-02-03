@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Scan, Languages, Sparkles, Zap, Shield, FileText } from "lucide-react";
+import { ArrowRight, Scan, Languages, Sparkles, Zap, Shield, FileText, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Landing() {
@@ -68,9 +68,11 @@ export default function Landing() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="gap-2 text-lg px-8 py-6 rounded-xl">
-                Learn More
-              </Button>
+              <Link to="/learn-more">
+                <Button variant="outline" size="lg" className="gap-2 text-lg px-8 py-6 rounded-xl">
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -163,16 +165,56 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-border">
+      <footer className="py-12 border-t border-border bg-muted/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Scan className="w-5 h-5 text-primary" />
-              <span className="font-display font-semibold">മലയാളംOCR</span>
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Scan className="w-5 h-5 text-primary" />
+                <span className="font-display font-semibold">മലയാളംOCR</span>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                An open-source project for converting handwritten Malayalam to English text using Deep Learning.
+              </p>
+              <a 
+                href="https://github.com/SABAH-K-J/Handwritten-Malayalam-To-English-Translation-Using-Deep-Learning" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <Github className="w-4 h-4"/> View Project on GitHub
+              </a>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Built with ❤️ for Malayalam language preservation
-            </p>
+
+            <div>
+              <h4 className="font-semibold mb-4">Developed By</h4>
+              <ul className="grid sm:grid-cols-2 gap-3 text-sm">
+                <li>
+                  <a href="https://github.com/SABAH-K-J" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
+                    <Github className="w-3 h-3" /> Sabah K J
+                  </a>
+                </li>
+                <li>
+                  <a href="https://github.com/farhan2977" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
+                    <Github className="w-3 h-3" /> Mohammed Farhan
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
+                    <Github className="w-3 h-3" /> Radhsyam Raghav K R
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
+                    <Github className="w-3 h-3" /> Mohammed Nowfal K A
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="text-center pt-8 border-t border-border/50 text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} Malayalam OCR. All rights reserved.
           </div>
         </div>
       </footer>
