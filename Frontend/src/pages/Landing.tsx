@@ -1,40 +1,98 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Scan, Languages, Sparkles, Zap, Shield, FileText, Github } from "lucide-react";
+import { ArrowRight, Scan, Languages, Sparkles, Zap, Shield, FileText, Github, Brain, Lightbulb, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import FeatureCard, { Feature } from "@/components/FeatureCard";
+
+// Feature Card Component is now imported from separate file for better modularity
 
 export default function Landing() {
-  const features = [
+  const features: Feature[] = [
     {
       icon: Scan,
-      title: "Advanced OCR",
-      description: "State-of-the-art recognition for handwritten Malayalam text with high accuracy.",
+      title: "Intelligent Text Detection",
+      description: "YOLOv2 neural network precisely locates handwritten text regions in images, achieving high accuracy even with complex layouts and multiple text blocks.",
+      techStack: ["YOLOv2", "OpenCV", "PyTorch"],
+      category: "detection",
+    },
+    {
+      icon: Brain,
+      title: "Character Recognition Engine",
+      description: "CustomCRNN architecture with ResNet backbone recognizes individual Malayalam characters with frame-level accuracy, processing high-resolution character sequences.",
+      techStack: ["CRNN", "ResNet", "LSTM"],
+      category: "recognition",
+    },
+    {
+      icon: Lightbulb,
+      title: "Smart Spell Correction",
+      description: "SymSpell algorithm with context-aware Malayalam dictionary corrects OCR errors and suggests contextually accurate alternative words using KenLM language model.",
+      techStack: ["SymSpell", "KenLM", "Dictionary"],
+      category: "processing",
     },
     {
       icon: Languages,
-      title: "Instant Translation",
-      description: "Get accurate English translations of your Malayalam documents in seconds.",
+      title: "Advanced Translation",
+      description: "NLLB (No Language Left Behind) transformer model delivers accurate Malayalam to English translation, understanding context and maintaining meaning through deep semantic understanding.",
+      techStack: ["NLLB", "Transformers", "Hugging Face"],
+      category: "translation",
     },
     {
-      icon: Sparkles,
-      title: "AI Spell Check",
-      description: "Intelligent spell correction powered by machine learning models.",
-    },
-    {
-      icon: Zap,
-      title: "Lightning Fast",
-      description: "Process documents quickly with our optimized backend infrastructure.",
+      icon: Cpu,
+      title: "GPU-Accelerated Processing",
+      description: "FastAPI backend with PyTorch GPU inference achieves real-time processing speeds, supporting CUDA for NVIDIA GPUs and optimized CPU fallback for compatibility.",
+      techStack: ["FastAPI", "CUDA", "PyTorch"],
+      category: "infrastructure",
     },
     {
       icon: Shield,
-      title: "Secure & Private",
-      description: "Your documents are processed securely and never stored on our servers.",
-    },
-    {
-      icon: FileText,
-      title: "Multiple Formats",
-      description: "Upload images in JPG, PNG, or capture directly from your camera.",
+      title: "Privacy-First Architecture",
+      description: "All processing happens locally on your device or private server. No images are stored on external servers, ensuring complete data privacy and security compliance.",
+      techStack: ["Local Processing", "No Cloud", "Secure"],
+      category: "privacy",
     },
   ];
+
+  // Reusable button component with micro-interactions
+  const InteractiveButton = ({ 
+    variant = "primary", 
+    children, 
+    to, 
+    className = "",
+    size = "lg",
+  }: {
+    variant?: "outline" | "default" | "destructive" | "secondary" | "ghost" | "link" | "primary";
+    children: React.ReactNode;
+    to: string;
+    className?: string;
+    size?: "lg" | "default" | "sm" | "icon";
+  }) => {
+    const baseClasses = "relative overflow-hidden group transition-all duration-300 ease-out";
+    const buttonVariant = variant === "primary" ? "default" : (variant || "default");
+    const variantClasses = variant === "outline" 
+      ? `${className} gap-2 text-lg px-8 py-6 rounded-xl`
+      : `${className} gap-2 text-lg px-8 py-6 rounded-xl shadow-glow`;
+
+    return (
+      <Link to={to}>
+        <Button 
+          variant={buttonVariant as "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"}
+          size={size}
+          className={`${baseClasses} ${variantClasses} hover:scale-105 active:scale-95`}
+        >
+          {/* Animated background gradient for primary buttons */}
+          {variant === "primary" && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 group-hover:animate-shimmer" />
+          )}
+          
+          {/* Ripple effect overlay */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-0 group-active:opacity-100 group-active:animate-ping pointer-events-none" />
+          
+          <span className="relative flex items-center gap-2">
+            {children}
+          </span>
+        </Button>
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen pt-16">
@@ -62,29 +120,25 @@ export default function Landing() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: "200ms" }}>
-              <Link to="/scanner">
-                <Button size="lg" className="gap-2 text-lg px-8 py-6 rounded-xl shadow-glow">
-                  Start Scanning
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Link to="/learn-more">
-                <Button variant="outline" size="lg" className="gap-2 text-lg px-8 py-6 rounded-xl">
-                  Learn More
-                </Button>
-              </Link>
+              <InteractiveButton to="/scanner">
+                Start Scanning
+                <ArrowRight className="w-5 h-5" />
+              </InteractiveButton>
+              <InteractiveButton variant="outline" to="/learn-more">
+                Learn More
+              </InteractiveButton>
             </div>
           </div>
 
           {/* Demo Preview */}
-          <div className="mt-20 relative animate-scale-in" style={{ animationDelay: "300ms" }}>
+          <div className="mt-20 relative animate-scale-in group" style={{ animationDelay: "300ms" }}>
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-            <div className="glass-card rounded-3xl p-4 sm:p-8 shadow-lg max-w-5xl mx-auto">
+            <div className="glass-card rounded-3xl p-4 sm:p-8 shadow-lg max-w-5xl mx-auto transition-all duration-300 group-hover:shadow-xl">
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Input Preview */}
-                <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-center min-h-[200px]">
+                <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-center min-h-[200px] transition-all duration-300 group-hover:bg-muted/70">
                   <div className="text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
                       <FileText className="w-8 h-8 text-primary" />
                     </div>
                     <p className="text-muted-foreground">Upload your document</p>
@@ -92,17 +146,17 @@ export default function Landing() {
                 </div>
 
                 {/* Output Preview */}
-                <div className="bg-card rounded-2xl p-6 border border-border">
+                <div className="bg-card rounded-2xl p-6 border border-border transition-all duration-300">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-3 h-3 rounded-full bg-red-500" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500" />
                     <div className="w-3 h-3 rounded-full bg-green-500" />
                   </div>
                   <div className="space-y-3">
-                    <div className="h-4 bg-muted rounded-full w-3/4" />
-                    <div className="h-4 bg-muted rounded-full w-full" />
-                    <div className="h-4 bg-muted rounded-full w-5/6" />
-                    <div className="h-4 bg-primary/20 rounded-full w-2/3" />
+                    <div className="h-4 bg-muted rounded-full w-3/4 group-hover:bg-muted/80 transition-colors duration-300" />
+                    <div className="h-4 bg-muted rounded-full w-full group-hover:bg-muted/80 transition-colors duration-300" />
+                    <div className="h-4 bg-muted rounded-full w-5/6 group-hover:bg-muted/80 transition-colors duration-300" />
+                    <div className="h-4 bg-primary/20 rounded-full w-2/3 group-hover:bg-primary/30 transition-colors duration-300" />
                   </div>
                 </div>
               </div>
@@ -125,21 +179,7 @@ export default function Landing() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className="glass-card rounded-2xl p-6 hover:shadow-md transition-all duration-300 group"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-display font-semibold text-lg mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {feature.description}
-                </p>
-              </div>
+              <FeatureCard key={feature.title} feature={feature} index={index} />
             ))}
           </div>
         </div>
@@ -156,9 +196,17 @@ export default function Landing() {
             Upload your first document and experience the power of AI-driven Malayalam OCR.
           </p>
           <Link to="/scanner">
-            <Button size="lg" className="gap-2 text-lg px-10 py-6 rounded-xl shadow-glow">
-              Try Scanner Now
-              <ArrowRight className="w-5 h-5" />
+            <Button size="lg" className="relative overflow-hidden group gap-2 text-lg px-10 py-6 rounded-xl shadow-glow hover:scale-105 active:scale-95 transition-all duration-300 ease-out">
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 group-hover:animate-shimmer" />
+              
+              {/* Ripple effect */}
+              <div className="absolute inset-0 opacity-0 group-active:opacity-100 group-active:animate-ping pointer-events-none" />
+              
+              <span className="relative flex items-center gap-2">
+                Try Scanner Now
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </span>
             </Button>
           </Link>
         </div>
@@ -169,9 +217,15 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Scan className="w-5 h-5 text-primary" />
-                <span className="font-display font-semibold">മലയാളംOCR</span>
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/1000161394.png" 
+                  alt="Malayalam OCR Logo" 
+                  className="w-8 h-8 rounded-lg object-contain"
+                />
+                <span className="font-display font-bold text-lg text-foreground">
+                  മലയാളം<span className="text-primary">OCR</span>
+                </span>
               </div>
               <p className="text-sm text-muted-foreground max-w-xs">
                 An open-source project for converting handwritten Malayalam to English text using Deep Learning.
@@ -180,9 +234,9 @@ export default function Landing() {
                 href="https://github.com/SABAH-K-J/Handwritten-Malayalam-To-English-Translation-Using-Deep-Learning" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 hover:underline transition-all duration-300 hover:translate-x-0.5"
               >
-                <Github className="w-4 h-4"/> View Project on GitHub
+                <Github className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" /> View Project on GitHub
               </a>
             </div>
 
@@ -190,23 +244,23 @@ export default function Landing() {
               <h4 className="font-semibold mb-4">Developed By</h4>
               <ul className="grid sm:grid-cols-2 gap-3 text-sm">
                 <li>
-                  <a href="https://github.com/SABAH-K-J" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
-                    <Github className="w-3 h-3" /> Sabah K J
+                  <a href="https://github.com/SABAH-K-J" className="flex items-center gap-2 hover:text-primary transition-all duration-300 text-muted-foreground hover:translate-x-1 group">
+                    <Github className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" /> Sabah K J
                   </a>
                 </li>
                 <li>
-                  <a href="https://github.com/farhan2977" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
-                    <Github className="w-3 h-3" /> Mohammed Farhan
+                  <a href="https://github.com/farhan2977" className="flex items-center gap-2 hover:text-primary transition-all duration-300 text-muted-foreground hover:translate-x-1 group">
+                    <Github className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" /> Mohammed Farhan
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
-                    <Github className="w-3 h-3" /> Radhsyam Raghav K R
+                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-all duration-300 text-muted-foreground hover:translate-x-1 group">
+                    <Github className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" /> Radhsyam Raghav K R
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-colors text-muted-foreground hover:translate-x-1 duration-200">
-                    <Github className="w-3 h-3" /> Mohammed Nowfal K A
+                  <a href="#" className="flex items-center gap-2 hover:text-primary transition-all duration-300 text-muted-foreground hover:translate-x-1 group">
+                    <Github className="w-3 h-3 group-hover:rotate-12 transition-transform duration-300" /> Mohammed Nowfal K A
                   </a>
                 </li>
               </ul>

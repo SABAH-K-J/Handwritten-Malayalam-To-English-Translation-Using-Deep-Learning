@@ -11,7 +11,7 @@ import {
 
 type TabType = "corrected" | "translation" | "raw";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://ment-maintain-interested-trunk.trycloudflare.com";
 
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -187,7 +187,12 @@ export default function Scanner() {
   return (
     // FIX 1: overflow-x-hidden ensures no horizontal scrolling
     // FIX 2: min-h-screen ensures full height coverage
-    <div className="min-h-screen pt-20 pb-12 bg-background px-4 overflow-x-hidden w-full max-w-[100vw]">
+    <div className="min-h-screen pt-16 pb-12 px-4 overflow-x-hidden w-full max-w-[100vw] relative">
+      {/* Background Glow */}
+      <div className="hero-glow -top-40 -right-40" />
+      <div className="hero-glow -bottom-40 -left-40" />
+
+      <div className="relative z-10">
       {showCamera && <CameraCapture onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />}
       
       {showCropper && uploadedImage && (
@@ -204,9 +209,7 @@ export default function Scanner() {
             /* --- UPLOAD SCREEN --- */
             <div className="min-h-[75vh] flex flex-col items-center justify-center relative w-full">
              
-             {/* Decorative Background Elements */}
-             <div className="absolute top-10 left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl -z-10 animate-pulse" />
-             <div className="absolute bottom-10 right-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl -z-10 animate-pulse delay-700" />
+             {/* Removed duplicate decorative elements - using global hero-glow instead */}
              
              <div className="w-full max-w-4xl px-4">
                <div className="text-center mb-10 animate-fade-in relative">
@@ -379,6 +382,7 @@ export default function Scanner() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
