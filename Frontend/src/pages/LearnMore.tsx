@@ -314,6 +314,20 @@ const LearnMore = () => {
           </div>
         </div>
 
+        {/* API Documentation Button */}
+        <div className="flex justify-center mb-20">
+          <Link to="/api-documentation">
+            <Button 
+              size="lg" 
+              className="gap-2 shadow-glow btn-lift"
+              aria-label="Navigate to API Documentation and Process Explanation"
+            >
+              API Documentation
+              <ArrowRight className="w-5 h-5 icon-hover-bounce" />
+            </Button>
+          </Link>
+        </div>
+
         {/* Call to Action */}
         <div className="text-center">
           <p className="text-slate-600 dark:text-slate-300 mb-8">Explore the complete workflow of our OCR system</p>

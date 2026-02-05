@@ -96,71 +96,92 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background animate-fade-in">
-      <div className="absolute inset-0 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 bg-card border-b border-border">
-          <h3 className="text-lg font-display font-semibold text-foreground">Camera Capture</h3>
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full">
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Camera View */}
-        <div className="flex-1 relative bg-muted overflow-hidden">
-          {error ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center p-8">
-                <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">{error}</p>
+    <div className="fixed inset-0 z-50 bg-black animate-fade-in">
+      {/* Full-screen Camera View */}
+      <div className="absolute inset-0">
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+            <div className="text-center p-8 space-y-4">
+              <div className="w-20 h-20 mx-auto rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <Camera className="w-10 h-10 text-white/70" />
               </div>
+              <p className="text-white/90 font-medium text-lg">{error}</p>
+              <p className="text-white/60 text-sm">Please check your camera permissions</p>
             </div>
-          ) : (
-            <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              {/* Scanning overlay */}
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-8 border-2 border-primary/50 rounded-2xl">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl" />
-                </div>
-              </div>
-            </>
-          )}
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-
-        {/* Controls */}
-        <div className="p-6 bg-card border-t border-border">
-          <div className="flex items-center justify-center gap-8">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={switchCamera}
-              className="w-12 h-12 rounded-full"
-            >
-              <SwitchCamera className="w-5 h-5" />
-            </Button>
-            <button
-              onClick={captureImage}
-              disabled={!isReady}
-              className="w-20 h-20 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-glow hover:scale-105 active:scale-95"
-            >
-              <Aperture className="w-10 h-10 text-primary-foreground" />
-            </button>
-            <div className="w-12 h-12" />
           </div>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            Position the document within the frame
-          </p>
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </>
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+
+      {/* Top Bar - Minimal overlay */}
+      <div className="absolute top-0 left-0 right-0 z-10">
+        <div className="flex items-center justify-between p-4 md:p-6">
+          <div className="flex-1" />
+          <h3 className="text-lg md:text-xl font-semibold text-white drop-shadow-lg">Camera</h3>
+          <div className="flex-1 flex justify-end">
+            <button
+              onClick={handleClose}
+              className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition-all duration-200 active:scale-95 border border-white/10"
+            >
+              <X className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Control Panel - Samsung One UI 8 Style */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <div className="bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-xl pb-safe">
+          {/* Instruction text */}
+          <div className="px-6 pt-6 pb-4 text-center">
+            <p className="text-white/90 text-sm md:text-base font-medium tracking-wide">
+              Position the document within the frame
+            </p>
+          </div>
+
+          {/* Control buttons */}
+          <div className="px-6 pb-8 md:pb-10">
+            <div className="flex items-center justify-center gap-4 md:gap-8 max-w-md mx-auto">
+              {/* Switch Camera Button */}
+              <button
+                onClick={switchCamera}
+                className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all duration-200 active:scale-90 border border-white/20 shadow-xl group"
+              >
+                <SwitchCamera className="w-6 h-6 md:w-7 md:h-7 text-white group-hover:rotate-180 transition-transform duration-500" />
+              </button>
+
+              {/* Capture Button - Premium layered design */}
+              <div className="relative">
+                {/* Outer ring with glow */}
+                <div className="absolute inset-0 rounded-full bg-white/20 blur-xl scale-110" />
+                
+                {/* Outer circle */}
+                <button
+                  onClick={captureImage}
+                  disabled={!isReady}
+                  className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 border-4 border-white shadow-2xl hover:scale-105 active:scale-95 group"
+                >
+                  {/* Inner circle */}
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center shadow-lg group-hover:bg-white/95 transition-all duration-200 group-active:scale-90">
+                    <Aperture className="w-8 h-8 md:w-10 md:h-10 text-black group-hover:rotate-90 transition-transform duration-300" />
+                  </div>
+                </button>
+              </div>
+
+              {/* Spacer for symmetry */}
+              <div className="w-14 h-14 md:w-16 md:h-16" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Scan, Home, Menu, X, BookOpen } from "lucide-react";
+import { Moon, Sun, Scan, Home, Menu, X, BookOpen, Languages } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./ThemeProvider";
 import { useState } from "react";
@@ -16,6 +16,7 @@ export function Navbar() {
   const navLinks = [
     { to: "/", label: "Home", icon: Home },
     { to: "/scanner", label: "Scanner", icon: Scan },
+    { to: "/translation", label: "Translation", icon: Languages },
     { to: "/learn-more", label: "Learn More", icon: BookOpen },
   ];
 

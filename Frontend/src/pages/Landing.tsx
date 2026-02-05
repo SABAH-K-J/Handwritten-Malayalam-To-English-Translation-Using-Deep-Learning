@@ -124,6 +124,10 @@ export default function Landing() {
                 Start Scanning
                 <ArrowRight className="w-5 h-5" />
               </InteractiveButton>
+              <InteractiveButton variant="outline" to="/translation">
+                <Languages className="w-5 h-5" />
+                Translation
+              </InteractiveButton>
               <InteractiveButton variant="outline" to="/learn-more">
                 Learn More
               </InteractiveButton>
