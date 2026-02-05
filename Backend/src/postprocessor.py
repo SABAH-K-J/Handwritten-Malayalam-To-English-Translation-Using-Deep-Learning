@@ -9,10 +9,11 @@ from transformers import pipeline
 
 # Mock config
 try:
-    from src.config import DICT_PATH, CACHE_DIR
+    from src.config import DICT_PATH, CACHE_DIR, TRANSLATOR_MODEL_PATH
 except ImportError:
     DICT_PATH = "malayalam_dict.txt" 
     CACHE_DIR = "./cache"
+    TRANSLATOR_MODEL_PATH = ""
 
 # --- COLOR LOGGING HELPER ---
 class Log:
@@ -39,7 +40,7 @@ class PostProcessor:
     def __init__(self):
         Log.info("Initializing Integrated Malayalam Post-Processor...")
         
-        # 1. Dictionary Setup
+        # 1. Dictionary Setup (Kept for future spell check, but unused for merging now)
         self.sym_spell = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
         self._load_dictionary_optimized()
 
@@ -50,9 +51,6 @@ class PostProcessor:
 
     def _init_translator(self):
         try:
-            # Import the path from config
-            from src.config import TRANSLATOR_MODEL_PATH
-            
             Log.process("Initializing Translation Pipeline...")
             
             # 1. Check if the offline model exists
@@ -70,7 +68,6 @@ class PostProcessor:
                 "translation", 
                 model=model_source, 
                 device=self.device,
-                # Use float16 if on GPU (device=0), else float32 for CPU
                 dtype=torch.float16 if self.device == 0 else torch.float32,
                 framework="pt"
             )
@@ -113,29 +110,6 @@ class PostProcessor:
         text = text.replace('\u200D', '').replace('\u200C', '')
         return text
 
-    def merge_split_words(self, text):
-        """Merges fragmented Malayalam words based on dictionary validity."""
-        words = text.split()
-        if len(words) < 2: return text
-
-        merged = []
-        i = 0
-        while i < len(words):
-            current = words[i]
-            if i + 1 < len(words):
-                next_word = words[i+1]
-                combined = current + next_word
-                
-                # Logic: Merge if combined word is real, or if 'current' is a tiny fragment
-                if combined in self.sym_spell.words or len(current) == 1:
-                    merged.append(combined)
-                    i += 2
-                    continue
-            
-            merged.append(current)
-            i += 1
-        return " ".join(merged)
-
     def inject_punctuation(self, text):
         """Adds logical sentence breaks for the translator."""
         # Simple end-of-sentence markers
@@ -148,8 +122,9 @@ class PostProcessor:
         # Step 1: Normalize
         text = self.normalize_and_clean(raw_text)
         
-        # Step 2: Merge fragments
-        text = self.merge_split_words(text)
+        # [DISABLED] Step 2: Merge fragments 
+        # Removed per request to stop combining distinct words
+        # text = self.merge_split_words(text)
         
         # Step 3: Punctuation for translation context
         text_with_grammar = self.inject_punctuation(text)

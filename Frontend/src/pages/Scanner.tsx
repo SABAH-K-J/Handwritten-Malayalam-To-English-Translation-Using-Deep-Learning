@@ -12,7 +12,7 @@ import {
 
 type TabType = "corrected" | "translation" | "raw";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://researchers-pts-slides-instructors.trycloudflare.com";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);

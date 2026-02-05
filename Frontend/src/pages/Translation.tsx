@@ -7,7 +7,7 @@ import {
   ArrowRight, Sparkles, RotateCcw, FileText 
 } from "lucide-react";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://researchers-pts-slides-instructors.trycloudflare.com";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function Translation() {
   const [malayalamText, setMalayalamText] = useState("");
