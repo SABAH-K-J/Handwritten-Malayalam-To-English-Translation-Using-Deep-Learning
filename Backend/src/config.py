@@ -65,4 +65,4 @@ BATCH_SIZE = 16        # Number of crops to process in parallel (Higher = Faster
 # ==========================================
 # 4. DEBUG CONFIGURATION
 # ==========================================
-DEBUG_MODE = True
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"

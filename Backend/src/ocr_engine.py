@@ -114,27 +114,23 @@ class MalayalamOCR:
             sorted_boxes.extend(line)
         return sorted_boxes
 
-    def predict_crop(self, processed_crop, crop_id=0, debug=False, debug_dir="debug_output"):
-        # processed_crop is already (0-1) float32 from preprocessor
-        
-        # INVERSION CHECK: 
-        # Standard CRNNs expect text to be "signal" (1.0) and bg to be "noise" (0.0).
-        # Your preprocessor returns White BG (1.0) and Black Text (0.0).
-        # So we invert here to match standard Tensor inputs.
-        img_arr = 1.0 - processed_crop
-        
-        img_t = torch.from_numpy(img_arr).unsqueeze(0).unsqueeze(0).to(DEVICE)
-        
-        if debug:
-            # Save the exact input the model sees (inverted back for visual check)
-            visual_check = (processed_crop * 255).astype(np.uint8)
-            cv2.imwrite(os.path.join(debug_dir, f"crop_{crop_id}.png"), visual_check)
-        
+    def predict_batch(self, crop_batch):
+        """
+        Runs batch inference on a tensor of crops.
+        crop_batch: (Batch, 1, H, W) float tensor
+        Returns: list of text strings
+        """
         with torch.no_grad():
-            preds = self.crnn(img_t) 
-            logits = preds.cpu().detach().numpy()[0]
-            text = self.decoder.decode(logits)
-            return text
+            preds = self.crnn(crop_batch)
+            # preds shape: (Batch, SequenceLength, NumClasses)
+            preds_np = preds.cpu().detach().numpy()
+            
+            results = []
+            for logits in preds_np:
+                # Decode each item in the batch
+                text = self.decoder.decode(logits)
+                results.append(text)
+            return results
 
     def smart_manual_crop(self, image, points_json, scale_factor=1.0):
         try:
@@ -194,12 +190,12 @@ class MalayalamOCR:
         
         if not boxes: return "No text detected.", "", ""
         
-        # 5. Recognize (CRNN)
+        # 5. Recognize (CRNN) - Optimized Batch Processing
         boxes = self.sort_boxes(boxes) 
-        full_text_list = []
-        
-        Log.info(f"Detected {len(boxes)} words.")
+        Log.info(f"Detected {len(boxes)} words. Running batched inference...")
 
+        crop_tensors = []
+        
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             pad = 5
             h_img, w_img = detection_input.shape[:2]
@@ -210,12 +206,29 @@ class MalayalamOCR:
             crop_raw = detection_input[y1_safe:y2_safe, x1_safe:x2_safe]
             
             # Use the NEW Training-Matched Preprocessor
-            # We set target_h to 32 (standard) or 64 (high-res), adjust if your model is specifically 32 or 64.
-            # I set it to 32 here as that's the most common default for CRNNs.
             processed_crop = preprocess_crop_for_ocr(crop_raw, target_h=IMG_H, target_w=128)
             
-            text = self.predict_crop(processed_crop, crop_id=i, debug=debug, debug_dir=debug_dir)
-            full_text_list.append(text)
+            # Invert colors (Background 1.0 -> 0.0)
+            img_arr = 1.0 - processed_crop
+            crop_tensors.append(img_arr)
+            
+            if debug:
+                visual_check = (processed_crop * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(debug_dir, f"crop_{i}.png"), visual_check)
+            
+        # Run Batch Inference
+        full_text_list = []
+        if crop_tensors:
+            # Stack into (N, 1, H, W)
+            batch_np = np.array(crop_tensors, dtype=np.float32)
+            batch_tensor = torch.from_numpy(batch_np).unsqueeze(1).to(DEVICE)
+            
+            # Process in mini-batches to match BATCH_SIZE config
+            total_items = len(crop_tensors)
+            for start_idx in range(0, total_items, BATCH_SIZE):
+                batch_slice = batch_tensor[start_idx : start_idx + BATCH_SIZE]
+                texts = self.predict_batch(batch_slice)
+                full_text_list.extend(texts)
             
         smart_sentence = " ".join(full_text_list)
         

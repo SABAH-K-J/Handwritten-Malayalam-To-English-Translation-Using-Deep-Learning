@@ -54,20 +54,31 @@ class Log:
     def error(msg):   print(f"{Log.RED}{Log.BOLD}[ERROR]{Log.RESET}   {msg}")
 
 # 1. Initialize the App
-app = FastAPI(title="Malayalam OCR API", description="Production Ready OCR Backend")
+# Disable docs in production for security
+app = FastAPI(
+    title="Malayalam OCR API", 
+    description="Production Ready OCR Backend",
+    docs_url="/docs" if DEBUG_MODE else None,
+    redoc_url="/redoc" if DEBUG_MODE else None
+)
 
 # 2. CORS Setup (Allow Frontend Access)
-origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "*"
-]
+# In production, specific origins should be defined via environment variables
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+if env_origins:
+    origins = [origin.strip() for origin in env_origins.split(",")]
+else:
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:80", 
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
     allow_headers=["*"],
 )
 
