@@ -191,13 +191,13 @@ export function CropEditor({ imageSrc, initialPoints, onConfirm, onCancel }: Cro
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 touch-none select-none"
+      className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 touch-none select-none"
       onMouseMove={handleDrag} onMouseUp={() => setActivePoint(null)}
       onTouchMove={handleDrag} onTouchEnd={() => setActivePoint(null)}
     >
-      <div className="text-center mb-4 shrink-0"><h3 className="text-white text-lg font-bold">Adjust Crop</h3></div>
+      <div className="text-center mb-4 shrink-0"><h3 className="text-white text-lg font-bold animate-fade-in">Adjust Crop</h3></div>
       
-      <div ref={containerRef} className="relative w-full max-w-lg h-[60vh] sm:h-[70vh] flex items-center justify-center bg-black/50 rounded-lg overflow-hidden">
+      <div ref={containerRef} className="relative w-full max-w-lg h-[60vh] sm:h-[70vh] flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-lg overflow-hidden glass-panel border border-white/10 shadow-2xl">
         <img ref={imageRef} src={imageSrc} onLoad={onImageLoad} className="max-w-full max-h-full object-contain pointer-events-none" alt="Crop Preview" />
         
         {/* Overlay aligned to dimensions */}
@@ -219,15 +219,15 @@ export function CropEditor({ imageSrc, initialPoints, onConfirm, onCancel }: Cro
 
       <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full max-w-lg px-4 shrink-0">
          <div className="flex gap-2 flex-1">
-            <Button variant="secondary" className="flex-1" onClick={onCancel}>
+            <Button variant="secondary" className="flex-1 glass-button elevation-lift" onClick={onCancel}>
                 <X className="w-4 h-4 mr-2" /> Retake
             </Button>
             {/* SKIP BUTTON RESTORED */}
-            <Button variant="outline" className="flex-1 text-white border-white/20 hover:bg-white/10" onClick={handleSkip}>
+            <Button variant="outline" className="flex-1 text-white border-white/20 hover:bg-white/10 glass-button backdrop-blur-md" onClick={handleSkip}>
                 Skip <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
          </div>
-         <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto" onClick={handleConfirm}>
+         <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto glass-button liquid-glow elevation-lift" onClick={handleConfirm}>
             <Check className="w-4 h-4 mr-2" /> Scan Page
          </Button>
       </div>

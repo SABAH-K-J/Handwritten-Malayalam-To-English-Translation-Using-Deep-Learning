@@ -65,11 +65,11 @@ export default function Landing() {
     className?: string;
     size?: "lg" | "default" | "sm" | "icon";
   }) => {
-    const baseClasses = "relative overflow-hidden group transition-all duration-300 ease-out";
+    const baseClasses = "relative overflow-hidden group transition-all duration-300 ease-out glass-button liquid-glow elevation-lift";
     const buttonVariant = variant === "primary" ? "default" : (variant || "default");
     const variantClasses = variant === "outline" 
-      ? `${className} gap-2 text-lg px-8 py-6 rounded-xl`
-      : `${className} gap-2 text-lg px-8 py-6 rounded-xl shadow-glow`;
+      ? `${className} gap-2 text-lg px-8 py-6 rounded-xl glass-shimmer`
+      : `${className} gap-2 text-lg px-8 py-6 rounded-xl shadow-glow glass-shimmer`;
 
     return (
       <Link to={to}>
@@ -99,8 +99,8 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         {/* Background Glow */}
-        <div className="hero-glow -top-40 -right-40" />
-        <div className="hero-glow -bottom-40 -left-40" />
+        <div className="hero-glow -top-40 -right-40 animate-glow-pulse" />
+        <div className="hero-glow -bottom-40 -left-40 animate-glow-pulse" style={{animationDelay: "1s"}} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative">
           <div className="text-center max-w-4xl mx-auto">
@@ -135,14 +135,14 @@ export default function Landing() {
           </div>
 
           {/* Demo Preview */}
-          <div className="mt-20 relative animate-scale-in group" style={{ animationDelay: "300ms" }}>
+          <div className="mt-20 relative animate-scale-in group depth-shift" style={{ animationDelay: "300ms" }}>
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-            <div className="glass-card rounded-3xl p-4 sm:p-8 shadow-lg max-w-5xl mx-auto transition-all duration-300 group-hover:shadow-xl">
+            <div className="glass-panel rounded-3xl p-4 sm:p-8 shadow-lg max-w-5xl mx-auto transition-all duration-300 group-hover:shadow-xl liquid-light">
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Input Preview */}
-                <div className="bg-muted/50 rounded-2xl p-6 flex items-center justify-center min-h-[200px] transition-all duration-300 group-hover:bg-muted/70">
+                <div className="bg-muted/50 backdrop-blur-sm rounded-2xl p-6 flex items-center justify-center min-h-[200px] transition-all duration-300 group-hover:bg-muted/70 glass-reflection">
                   <div className="text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 liquid-glow soft-scale">
                       <FileText className="w-8 h-8 text-primary" />
                     </div>
                     <p className="text-muted-foreground">Upload your document</p>
@@ -150,7 +150,7 @@ export default function Landing() {
                 </div>
 
                 {/* Output Preview */}
-                <div className="bg-card rounded-2xl p-6 border border-border transition-all duration-300">
+                <div className="bg-card/80 backdrop-blur-md rounded-2xl p-6 border border-border/50 transition-all duration-300 glass-card glass-reflection">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-3 h-3 rounded-full bg-red-500" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -191,7 +191,7 @@ export default function Landing() {
 
       {/* CTA Section */}
       <section className="py-20 md:py-32 relative overflow-hidden">
-        <div className="hero-glow top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <div className="hero-glow top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-glow-pulse" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
           <h2 className="font-display text-3xl sm:text-4xl font-bold mb-6">
             Ready to Get Started?
@@ -200,7 +200,7 @@ export default function Landing() {
             Upload your first document and experience the power of AI-driven Malayalam OCR.
           </p>
           <Link to="/scanner">
-            <Button size="lg" className="relative overflow-hidden group gap-2 text-lg px-10 py-6 rounded-xl shadow-glow hover:scale-105 active:scale-95 transition-all duration-300 ease-out">
+            <Button size="lg" className="relative overflow-hidden group gap-2 text-lg px-10 py-6 rounded-xl shadow-glow hover:scale-105 active:scale-95 transition-all duration-300 ease-out glass-button liquid-glow elevation-lift glass-shimmer">
               {/* Shimmer effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 group-hover:animate-shimmer" />
               
@@ -217,7 +217,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border bg-muted/20">
+      <footer className="py-12 border-t border-border/30 bg-muted/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div className="space-y-4">

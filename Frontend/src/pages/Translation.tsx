@@ -7,7 +7,7 @@ import {
   ArrowRight, Sparkles, RotateCcw, FileText 
 } from "lucide-react";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://researchers-pts-slides-instructors.trycloudflare.com";
 
 export default function Translation() {
   const [malayalamText, setMalayalamText] = useState("");
@@ -102,8 +102,8 @@ export default function Translation() {
   return (
     <div className="min-h-screen pt-16 pb-12 px-4 overflow-x-hidden w-full max-w-[100vw] relative">
       {/* Background Glow */}
-      <div className="hero-glow -top-40 -right-40" />
-      <div className="hero-glow -bottom-40 -left-40" />
+      <div className="hero-glow -top-40 -right-40 animate-glow-pulse" />
+      <div className="hero-glow -bottom-40 -left-40 animate-glow-pulse" style={{animationDelay: "1.5s"}} />
 
       <div className="relative z-10 max-w-5xl mx-auto">
         {/* Simplified Header */}
@@ -117,14 +117,14 @@ export default function Translation() {
         </div>
 
         {/* Unified Translation Container */}
-        <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden animate-slide-up group">
+        <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden animate-slide-up group glass-card depth-shift">
           
           {/* Malayalam Input Section */}
           <div className="border-b border-border">
-            <div className="p-4 bg-muted/20 border-b border-border/50">
+            <div className="p-4 bg-muted/20 backdrop-blur-sm border-b border-border/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center liquid-glow">
                     <FileText className="w-4 h-4 text-primary" />
                   </div>
                   <h3 className="font-display font-semibold text-sm text-foreground">Malayalam</h3>
@@ -141,7 +141,7 @@ export default function Translation() {
               />
               
               {/* Malayalam Keyboard - Compact */}
-              <div className="border-t border-border/50 pt-4 mt-2">
+              <div className="border-t border-border/50 pt-4 mt-2 glass-elevated backdrop-blur-md rounded-lg p-2">
                 <MalayalamKeyboard 
                   onChange={setMalayalamText} 
                   inputName="malayalamTranslationInput" 
@@ -152,13 +152,13 @@ export default function Translation() {
           </div>
 
           {/* Translation Action Bar */}
-          <div className="px-6 py-3 bg-muted/10 border-y border-border/50 flex items-center justify-between">
+          <div className="px-6 py-3 bg-muted/10 backdrop-blur-sm border-y border-border/50 flex items-center justify-between">
             <div className="flex-1" />
             <Button
               onClick={handleTranslate}
               disabled={isTranslating || !malayalamText.trim()}
               size="sm"
-              className="relative overflow-hidden group gap-2 rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all duration-300 ease-out disabled:opacity-50 disabled:hover:scale-100"
+              className="relative overflow-hidden group gap-2 rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all duration-300 ease-out disabled:opacity-50 disabled:hover:scale-100 glass-button liquid-glow elevation-lift"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
               <span className="relative flex items-center gap-2">
@@ -171,7 +171,7 @@ export default function Translation() {
                 onClick={handleReset}
                 variant="ghost"
                 size="sm"
-                className="gap-2 rounded-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-out"
+                className="gap-2 rounded-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-out glass-button"
               >
                 <RotateCcw className="w-4 h-4" />
               </Button>
@@ -180,10 +180,10 @@ export default function Translation() {
 
           {/* English Output Section */}
           <div>
-            <div className="p-4 bg-muted/20 border-b border-border/50">
+            <div className="p-4 bg-muted/20 backdrop-blur-sm border-b border-border/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-secondary/80 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/80 flex items-center justify-center liquid-glow">
                     <Languages className="w-4 h-4 text-primary" />
                   </div>
                   <h3 className="font-display font-semibold text-sm text-foreground">English</h3>
@@ -197,7 +197,7 @@ export default function Translation() {
                       size="sm" 
                       onClick={handlePlayAudio} 
                       disabled={isPlayingAudio}
-                      className="gap-2 rounded-xl hover:scale-105 hover:bg-muted/50 active:scale-95 transition-all duration-200 ease-out"
+                      className="gap-2 rounded-xl hover:scale-105 hover:bg-muted/50 active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift"
                     >
                       {isPlayingAudio ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -210,7 +210,7 @@ export default function Translation() {
                       variant="ghost" 
                       size="sm" 
                       onClick={copyToClipboard}
-                      className="gap-2 rounded-xl hover:scale-105 hover:bg-muted/50 active:scale-95 transition-all duration-200 ease-out"
+                      className="gap-2 rounded-xl hover:scale-105 hover:bg-muted/50 active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift"
                     >
                       {copied ? (
                         <Check className="w-4 h-4 text-green-500 scale-110" />

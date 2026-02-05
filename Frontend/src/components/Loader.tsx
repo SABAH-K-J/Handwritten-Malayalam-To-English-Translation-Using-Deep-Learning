@@ -32,7 +32,7 @@ export function Loader({ message = "Processing...", size = "md" }: LoaderProps) 
       <div className="relative">
         {/* Outer glow ring - pulsing */}
         <div 
-          className={`${classes.container} rounded-full bg-primary/5 absolute inset-0 animate-ping`}
+          className={`${classes.container} rounded-full bg-primary/5 absolute inset-0 animate-ping liquid-glow`}
           style={{ animationDuration: "2s" }}
         />
         

@@ -132,10 +132,166 @@
     background-clip: text;
   }
 
+  /* === LIQUID GLASS UI SYSTEM === */
+  
+  /* Primary Glass Card - Premium frosted effect */
   .glass-card {
-    background: hsl(var(--card) / 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.5);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.7) 0%,
+      hsl(var(--card) / 0.5) 100%
+    );
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.3);
+    box-shadow: 
+      0 8px 32px 0 rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 0 hsl(var(--card) / 0.2),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.75) 0%,
+      hsl(var(--card) / 0.55) 100%
+    );
+    border-color: hsl(var(--border) / 0.4);
+    box-shadow: 
+      0 12px 48px 0 rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 0 hsl(var(--card) / 0.3),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.06);
+  }
+
+  /* Elevated Glass - For navbar and floating elements */
+  .glass-elevated {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--background) / 0.85) 0%,
+      hsl(var(--background) / 0.75) 100%
+    );
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.2);
+    box-shadow: 
+      0 4px 24px 0 rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Glass Button - Frosted interactive surface */
+  .glass-button {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.6) 0%,
+      hsl(var(--card) / 0.4) 100%
+    );
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.3);
+    box-shadow: 
+      0 2px 12px 0 rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 0 hsl(var(--card) / 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-button:hover::before {
+    opacity: 1;
+  }
+
+  .glass-button:hover {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.7) 0%,
+      hsl(var(--card) / 0.5) 100%
+    );
+    border-color: hsl(var(--border) / 0.4);
+    box-shadow: 
+      0 4px 20px 0 rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 0 hsl(var(--card) / 0.3);
+    transform: translateY(-1px);
+  }
+
+  .glass-button:active {
+    transform: translateY(0px);
+    box-shadow: 
+      0 2px 8px 0 rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 0 hsl(var(--card) / 0.2);
+  }
+
+  /* Glass Input - Frosted input field */
+  .glass-input {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--background) / 0.5) 0%,
+      hsl(var(--background) / 0.3) 100%
+    );
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.3);
+    box-shadow: 
+      inset 0 2px 8px 0 rgba(0, 0, 0, 0.04),
+      0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-input:focus {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--background) / 0.6) 0%,
+      hsl(var(--background) / 0.4) 100%
+    );
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 
+      inset 0 2px 8px 0 rgba(0, 0, 0, 0.04),
+      0 0 0 3px hsl(var(--primary) / 0.1);
+  }
+
+  /* Glass Panel - Large surface areas */
+  .glass-panel {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.6) 0%,
+      hsl(var(--card) / 0.4) 100%
+    );
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.25);
+    box-shadow: 
+      0 16px 64px 0 rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.05);
+  }
+
+  /* Glass Morphism Modal/Dialog */
+  .glass-modal {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.95) 0%,
+      hsl(var(--card) / 0.85) 100%
+    );
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid hsl(var(--border) / 0.3);
+    box-shadow: 
+      0 24px 80px 0 rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
   }
 
   .hero-glow {
@@ -147,10 +303,374 @@
     opacity: 0.15;
     filter: blur(100px);
     pointer-events: none;
+    animation: heroGlowPulse 8s ease-in-out infinite;
+  }
+
+  @keyframes heroGlowPulse {
+    0%, 100% { opacity: 0.15; transform: scale(1); }
+    50% { opacity: 0.2; transform: scale(1.05); }
+  }
+
+  /* Liquid Light Reflection Effect */
+  .liquid-light {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-light::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.15) 45%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(255, 255, 255, 0.15) 55%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .liquid-light:hover::after {
+    transform: translateX(100%);
+  }
+
+  /* Frosted Border Effect */
+  .frosted-border {
+    position: relative;
+    border: 1px solid transparent;
+  }
+
+  .frosted-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--border) / 0.5) 0%,
+      hsl(var(--border) / 0.2) 50%,
+      hsl(var(--border) / 0.5) 100%
+    );
+    border-radius: inherit;
+    opacity: 0.6;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+  }
+
+  .frosted-border:hover::before {
+    opacity: 1;
   }
 }
 
 @layer utilities {
+  /* === FLUID CURSOR INTERACTIONS === */
+  
+  /* Magnetic Hover - Subtle element attraction to cursor */
+  .magnetic-hover {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .magnetic-hover:hover {
+    transform: scale(1.02);
+  }
+
+  /* Depth Shift - Creates 3D depth on hover */
+  .depth-shift {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .depth-shift:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.15),
+      0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Liquid Glow - Smooth expanding glow on hover */
+  .liquid-glow {
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .liquid-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.2) 0%,
+      hsl(var(--primary) / 0.1) 50%,
+      hsl(var(--primary) / 0.2) 100%
+    );
+    border-radius: inherit;
+    opacity: 0;
+    filter: blur(12px);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+  }
+
+  .liquid-glow:hover::before {
+    opacity: 1;
+  }
+
+  /* Shimmer Effect - Light sweep across surface */
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%
+    );
+    animation: shimmerSweep 3s infinite;
+  }
+
+  @keyframes shimmerSweep {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  /* Parallax Motion - Subtle movement tracking */
+  .parallax-gentle {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  /* Glass Reflection - Dynamic light reflection */
+  .glass-reflection {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-reflection::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.15) 0%,
+      transparent 50%
+    );
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .glass-reflection:hover::before {
+    opacity: 1;
+  }
+
+  /* Elevation Lift - Smooth upward motion */
+  .elevation-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .elevation-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 12px 40px rgba(0, 0, 0, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .elevation-lift:active {
+    transform: translateY(0px);
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Soft Scale - Gentle zoom effect */
+  .soft-scale {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .soft-scale:hover {
+    transform: scale(1.03);
+  }
+
+  .soft-scale:active {
+    transform: scale(0.98);
+  }
+
+  /* === ENHANCED MOTION & TRANSITIONS === */
+
+  /* Smooth Fade In */
+  .smooth-fade-in {
+    animation: smoothFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes smoothFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Smooth Scale In */
+  .smooth-scale-in {
+    animation: smoothScaleIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes smoothScaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Liquid Slide Up */
+  .liquid-slide-up {
+    animation: liquidSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes liquidSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(32px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Blur Fade In */
+  .blur-fade-in {
+    animation: blurFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes blurFadeIn {
+    from {
+      opacity: 0;
+      filter: blur(8px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+
+  /* Ripple Pulse - Subtle outward pulse */
+  .ripple-pulse {
+    position: relative;
+  }
+
+  .ripple-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 2px solid hsl(var(--primary) / 0.3);
+    border-radius: inherit;
+    opacity: 0;
+    animation: ripplePulseEffect 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes ripplePulseEffect {
+    0% {
+      opacity: 0;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+  }
+
+  /* Glass Shimmer - Premium shimmer effect */
+  .glass-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 150%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 40%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0.1) 60%,
+      transparent 100%
+    );
+    transform: skewX(-20deg);
+  }
+
+  .glass-shimmer:hover::before {
+    animation: glassShimmerSweep 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes glassShimmerSweep {
+    0% {
+      left: -150%;
+    }
+    100% {
+      left: 150%;
+    }
+  }
+
+  /* Reduced Motion Support */
+  @media (prefers-reduced-motion: reduce) {
+    .magnetic-hover,
+    .depth-shift,
+    .liquid-glow,
+    .shimmer-effect,
+    .parallax-gentle,
+    .glass-reflection,
+    .elevation-lift,
+    .soft-scale,
+    .smooth-fade-in,
+    .smooth-scale-in,
+    .liquid-slide-up,
+    .blur-fade-in,
+    .ripple-pulse,
+    .glass-shimmer {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .magnetic-hover::after,
+    .depth-shift::after,
+    .liquid-glow::before,
+    .shimmer-effect::after,
+    .glass-reflection::before,
+    .ripple-pulse::after,
+    .glass-shimmer::before {
+      display: none !important;
+    }
+  }
+
   /* Existing animations */
   .animate-float {
     animation: float 6s ease-in-out infinite;

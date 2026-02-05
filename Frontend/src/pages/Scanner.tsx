@@ -12,7 +12,7 @@ import {
 
 type TabType = "corrected" | "translation" | "raw";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://researchers-pts-slides-instructors.trycloudflare.com";
 
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -190,8 +190,8 @@ export default function Scanner() {
     // FIX 2: min-h-screen ensures full height coverage
     <div className="min-h-screen pt-16 pb-12 px-4 overflow-x-hidden w-full max-w-[100vw] relative">
       {/* Background Glow */}
-      <div className="hero-glow -top-40 -right-40" />
-      <div className="hero-glow -bottom-40 -left-40" />
+      <div className="hero-glow -top-40 -right-40 animate-glow-pulse" />
+      <div className="hero-glow -bottom-40 -left-40 animate-glow-pulse" style={{animationDelay: "1.5s"}} />
 
       <div className="relative z-10">
       {showCamera && <CameraCapture onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />}
@@ -214,7 +214,7 @@ export default function Scanner() {
              
              <div className="w-full max-w-4xl px-4">
                <div className="text-center mb-10 animate-fade-in relative">
-                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20 text-primary text-sm font-semibold mb-6 shadow-sm backdrop-blur-sm">
+                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/20 text-primary text-sm font-semibold mb-6 shadow-sm backdrop-blur-sm glass-button liquid-glow">
                     <Sparkles className="w-4 h-4" /> 
                     Ready to digitize
                  </div>
@@ -231,11 +231,11 @@ export default function Scanner() {
                  {/* Upload Card */}
                  <label className="group relative cursor-pointer w-full">
                    <input type="file" accept="image/*" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                   <div className="h-64 rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 ease-out flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+                   <div className="h-64 rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 ease-out flex flex-col items-center justify-center p-8 text-center relative overflow-hidden glass-card depth-shift liquid-light">
                      {/* Animated background glow */}
                      <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-transparent transition-all duration-500" />
                      
-                     <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95 transition-all duration-300 ease-out relative z-10">
+                     <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95 transition-all duration-300 ease-out relative z-10 liquid-glow soft-scale">
                         <Upload className="w-10 h-10 text-primary group-hover:scale-110 transition-transform duration-300" />
                      </div>
                      <h3 className="font-display font-bold text-xl text-foreground mb-2 relative z-10">Upload Image</h3>
@@ -251,11 +251,11 @@ export default function Scanner() {
                  </label>
 
                  {/* Camera Card */}
-                 <button onClick={() => setShowCamera(true)} className="group h-64 w-full rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 ease-out flex flex-col items-center justify-center p-8 relative overflow-hidden">
+                 <button onClick={() => setShowCamera(true)} className="group h-64 w-full rounded-3xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 ease-out flex flex-col items-center justify-center p-8 relative overflow-hidden glass-card depth-shift liquid-light">
                    {/* Animated background glow */}
                    <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-transparent transition-all duration-500" />
                    
-                   <div className="w-20 h-20 rounded-2xl bg-secondary/80 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 group-active:scale-95 transition-all duration-300 ease-out relative z-10">
+                   <div className="w-20 h-20 rounded-2xl bg-secondary/80 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 group-active:scale-95 transition-all duration-300 ease-out relative z-10 liquid-glow soft-scale">
                      <Camera className="w-10 h-10 text-primary group-hover:scale-110 transition-transform duration-300" />
                    </div>
                    <h3 className="font-display font-bold text-xl text-foreground mb-2 relative z-10">Use Camera</h3>
@@ -284,15 +284,15 @@ export default function Scanner() {
         ) : (
           /* --- RESULTS SCREEN --- */
           <div className="animate-fade-in w-full">
-            <Button variant="ghost" onClick={resetScanner} className="mb-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:scale-105 active:scale-95 transition-all duration-200 ease-out -ml-2"><ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" /> New Scan</Button>
+            <Button variant="ghost" onClick={resetScanner} className="mb-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:scale-105 active:scale-95 transition-all duration-200 ease-out -ml-2 glass-button"><ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" /> New Scan</Button>
             
             <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 w-full">
               
               {/* LEFT COLUMN: IMAGE PREVIEW */}
               <div className="lg:col-span-2">
                 <div className="lg:sticky lg:top-24">
-                  <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden">
-                    <div className="p-4 border-b border-border bg-muted/30">
+                  <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden glass-card depth-shift">
+                    <div className="p-4 border-b border-border bg-muted/30 backdrop-blur-sm">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><FileText className="w-4 h-4 text-primary" /></div>
                         <div>
@@ -300,7 +300,7 @@ export default function Scanner() {
                         </div>
                       </div>
                     </div>
-                    <div className="p-4 bg-muted/10 flex justify-center">
+                    <div className="p-4 bg-muted/10 backdrop-blur-sm flex justify-center">
                         <img 
                             src={previewImage || uploadedImage || ""} 
                             alt="Document" 
@@ -317,7 +317,7 @@ export default function Scanner() {
                   {/* Tabs */}
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide max-w-full">
                     {tabs.map((tab) => (
-                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 rounded-2xl border-2 transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] ${activeTab === tab.id ? "border-primary bg-primary/5 shadow-md shadow-primary/10" : "border-border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-lg"}`}>
+                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 flex items-center gap-2 lg:gap-3 px-4 py-3 rounded-2xl border-2 transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] glass-button ${activeTab === tab.id ? "border-primary bg-primary/5 shadow-md shadow-primary/10 backdrop-blur-md" : "border-border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-lg backdrop-blur-sm"}`}>
                         <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${activeTab === tab.id ? "bg-primary text-primary-foreground scale-105" : "bg-muted text-muted-foreground group-hover:scale-110"}`}><tab.icon className="w-4 h-4 lg:w-5 lg:h-5 transition-transform duration-300" /></div>
                         <div className="text-left"><p className={`font-semibold text-xs lg:text-sm transition-colors duration-200 ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground"}`}>{tab.label}</p></div>
                       </button>
@@ -325,23 +325,23 @@ export default function Scanner() {
                   </div>
 
                   {/* Output Area */}
-                  <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden flex flex-col w-full">
-                    <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0 flex-wrap gap-2">
+                  <div className="bg-card rounded-3xl border border-border shadow-lg hover:shadow-xl hover:border-primary/20 transition-all duration-300 ease-out overflow-hidden flex flex-col w-full glass-card depth-shift">
+                    <div className="p-4 border-b border-border bg-muted/30 backdrop-blur-sm flex items-center justify-between shrink-0 flex-wrap gap-2">
                       <div className="flex items-center gap-3"><h3 className="font-display font-semibold text-sm text-foreground">{tabs.find(t => t.id === activeTab)?.label}</h3></div>
                       <div className="flex gap-2 ml-auto">
                           {(activeTab === "corrected" || activeTab === "translation") && !isLoading && !errorMsg && (
-                            <Button variant="outline" size="sm" onClick={handlePlayAudio} disabled={isPlayingAudio} className="gap-2 rounded-xl h-8 text-xs hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out">
+                            <Button variant="outline" size="sm" onClick={handlePlayAudio} disabled={isPlayingAudio} className="gap-2 rounded-xl h-8 text-xs hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift">
                               {isPlayingAudio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />}
                               {isPlayingAudio ? "Playing" : "Read"}
                             </Button>
                           )}
                           {activeTab === "corrected" && !isLoading && !errorMsg && (
-                            <Button variant="outline" size="sm" onClick={handleRetranslate} disabled={isRetranslating} className="gap-2 rounded-xl h-8 text-xs border-primary/20 text-primary hover:bg-primary/10 hover:border-primary/40 hover:scale-105 hover:shadow-md hover:shadow-primary/20 active:scale-95 transition-all duration-200 ease-out">
+                            <Button variant="outline" size="sm" onClick={handleRetranslate} disabled={isRetranslating} className="gap-2 rounded-xl h-8 text-xs border-primary/20 text-primary hover:bg-primary/10 hover:border-primary/40 hover:scale-105 hover:shadow-md hover:shadow-primary/20 active:scale-95 transition-all duration-200 ease-out glass-button liquid-glow">
                               <RefreshCw className={`w-3 h-3 transition-transform duration-300 ${isRetranslating ? 'animate-spin' : 'group-hover:rotate-180'}`} /> Update
                             </Button>
                           )}
                           {!isLoading && !errorMsg && getCurrentText() && (
-                          <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-2 rounded-xl h-8 hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out">
+                          <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-2 rounded-xl h-8 hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift">
                               {copied ? <Check className="w-3 h-3 text-green-500 scale-110" /> : <Copy className="w-3 h-3" />}
                           </Button>
                           )}
@@ -372,7 +372,7 @@ export default function Scanner() {
                             placeholder="No text detected."
                           />
                           {activeTab === "corrected" && (
-                            <div className="border-t border-border bg-muted/10 p-4 animate-in slide-in-from-bottom-2 sticky bottom-0 z-10">
+                            <div className="border-t border-border bg-muted/10 backdrop-blur-md p-4 animate-in slide-in-from-bottom-2 sticky bottom-0 z-10 glass-elevated">
                               <MalayalamKeyboard onChange={setCorrectedText} inputName="malayalamInput" inputValue={correctedText} />
                             </div>
                           )}

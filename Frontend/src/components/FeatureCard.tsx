@@ -57,7 +57,7 @@ const FeatureCard = ({ feature, index }: { feature: Feature; index: number }) =>
 
   return (
     <div
-      className="glass-card rounded-2xl p-6 transition-all duration-300 group hover:shadow-lg hover:scale-102 hover:-translate-y-1"
+      className="glass-card rounded-2xl p-6 transition-all duration-300 group hover:shadow-lg hover:scale-102 hover:-translate-y-1 depth-shift liquid-light glass-reflection"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Icon with dynamic glow based on category */}
@@ -65,7 +65,7 @@ const FeatureCard = ({ feature, index }: { feature: Feature; index: number }) =>
         <div
           className={`absolute inset-0 bg-gradient-to-br ${categoryColors[feature.category]} rounded-xl opacity-0 group-hover:opacity-100 blur-lg transition-opacity duration-300`}
         />
-        <div className="relative w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+        <div className="relative w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 liquid-glow soft-scale">
           <feature.icon className="w-6 h-6 text-primary group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors duration-300" />
         </div>
       </div>
