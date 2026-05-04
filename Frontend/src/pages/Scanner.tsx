@@ -9,10 +9,12 @@ import {
   ScanText, Copy, Check, Upload, Zap, AlertCircle, 
   Download, RefreshCw, Volume2, Loader2, Shield
 } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 type TabType = "corrected" | "translation" | "raw";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://researchers-pts-slides-instructors.trycloudflare.com";
+const BASE_URL = ""; // Proxy handles this
 
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -123,22 +125,94 @@ export default function Scanner() {
   };
 
   const handleDownloadPDF = async () => {
-    if (!translation) return;
+    if (!correctedText.trim() || !translation.trim()) return;
     setIsDownloading(true);
+    
     try {
-      const response = await fetch(`${BASE_URL}/generate-pdf`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: translation }),
+      // Create a temporary container for rendering
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "fixed";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "-9999px";
+      tempContainer.style.width = "800px";
+      tempContainer.style.backgroundColor = "white";
+      tempContainer.style.padding = "40px";
+      tempContainer.style.fontFamily = "system-ui, -apple-system, sans-serif";
+      tempContainer.style.lineHeight = "1.6";
+      
+      // Create content
+      tempContainer.innerHTML = `
+        <div style="margin-bottom: 30px;">
+          <h1 style="color: #2196F3; font-size: 24px; margin-bottom: 20px; text-align: center;">Scanned Document Translation</h1>
+          
+          <div style="margin-bottom: 25px;">
+            <h2 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333;">Malayalam (OCR):</h2>
+            <p style="font-size: 14px; color: #333; white-space: pre-wrap; word-break: break-word; font-family: 'Noto Sans Malayalam', system-ui;">${correctedText}</p>
+          </div>
+          
+          <hr style="border: none; border-top: 2px solid #ddd; margin: 25px 0;">
+          
+          <div style="margin-bottom: 25px;">
+            <h2 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333;">English Translation:</h2>
+            <p style="font-size: 14px; color: #333; white-space: pre-wrap; word-break: break-word;">${translation}</p>
+          </div>
+          
+          <p style="font-size: 12px; color: #999; margin-top: 30px;">Generated on: ${new Date().toLocaleString()}</p>
+        </div>
+      `;
+      
+      document.body.appendChild(tempContainer);
+      
+      // Capture the container as an image
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
       });
-      if (!response.ok) throw new Error("PDF Failed");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "translated_document.pdf";
-      document.body.appendChild(a); a.click();
-      window.URL.revokeObjectURL(url); document.body.removeChild(a);
-    } catch (error) { alert("Failed to download PDF."); } 
-    finally { setIsDownloading(false); }
+      
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+      
+      // Create PDF and add the image
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margin on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const imgData = canvas.toDataURL("image/png");
+      let yPosition = 10;
+      
+      // Add image to PDF (handle pagination if needed)
+      if (imgHeight > pdfHeight - 20) {
+        // Multi-page: split image
+        let heightLeft = imgHeight;
+        while (heightLeft > 0) {
+          pdf.addImage(imgData, "PNG", 10, yPosition, imgWidth, imgHeight);
+          heightLeft -= pdfHeight - 20;
+          if (heightLeft > 0) {
+            pdf.addPage();
+            yPosition = 10;
+          }
+        }
+      } else {
+        pdf.addImage(imgData, "PNG", 10, yPosition, imgWidth, imgHeight);
+      }
+      
+      pdf.save("scanned_translation.pdf");
+    } catch (error) { 
+      console.error("PDF generation error:", error);
+      alert("Failed to generate PDF."); 
+    } 
+    finally { 
+      setIsDownloading(false); 
+    }
   };
 
   const handlePlayAudio = async () => {
@@ -344,6 +418,11 @@ export default function Scanner() {
                           <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-2 rounded-xl h-8 hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift">
                               {copied ? <Check className="w-3 h-3 text-green-500 scale-110" /> : <Copy className="w-3 h-3" />}
                           </Button>
+                          )}
+                          {activeTab === "translation" && !isLoading && !errorMsg && correctedText && translation && (
+                            <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isDownloading} className="gap-2 rounded-xl h-8 text-xs hover:scale-105 hover:shadow-md active:scale-95 transition-all duration-200 ease-out glass-button elevation-lift">
+                              {isDownloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                            </Button>
                           )}
                       </div>
                     </div>

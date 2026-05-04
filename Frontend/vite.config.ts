@@ -8,11 +8,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 3000,
-    allowedHosts: [
-        '.trycloudflare.com',  // For Option 1
-        '.ngrok-free.app',     // For Option 2
-        'localhost'
-    ]
+    allowedHosts: true,
+    proxy: {
+      '/predict': 'http://127.0.0.1:8000',
+      '/detect-corners': 'http://127.0.0.1:8000',
+      '/translate': 'http://127.0.0.1:8000',
+      '/generate-pdf': 'http://127.0.0.1:8000',
+      '/tts': 'http://127.0.0.1:8000'
+    }
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
