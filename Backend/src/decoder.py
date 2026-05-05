@@ -1,28 +1,9 @@
+"""CTC decoding helpers that combine the character model with a KenLM language model."""
+
 from pyctcdecode import build_ctcdecoder
 import numpy as np
 import os
-import logging
-
-# --- COLOR LOGGING HELPER ---
-class Log:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    CYAN = "\033[96m"
-
-    @staticmethod
-    def process(msg): print(f"{Log.CYAN}{Log.BOLD}[PROCESS]{Log.RESET} {msg}")
-    @staticmethod
-    def info(msg):    print(f"{Log.BLUE}[INFO]{Log.RESET}    {msg}")
-    @staticmethod
-    def success(msg): print(f"{Log.GREEN}{Log.BOLD}[SUCCESS]{Log.RESET} {msg}")
-    @staticmethod
-    def warn(msg):    print(f"{Log.YELLOW}[WARN]{Log.RESET}    {msg}")
-    @staticmethod
-    def error(msg):   print(f"{Log.RED}{Log.BOLD}[ERROR]{Log.RESET}   {msg}")
+from src.logger import Log
 
 class IntelligentDecoder:
     def __init__(self, char_list, lm_path, lexicon_path):
@@ -32,9 +13,7 @@ class IntelligentDecoder:
             lm_path (str): Path to 'lm.binary'
             lexicon_path (str): Path to 'clean_lexicon.txt'
         """
-        self.logger = logging.getLogger(__name__)
-        
-        # 1. READ THE LEXICON FILE INTO A LIST
+        # Load a unigram list so the decoder can bias toward known Malayalam words.
         unigrams_list = []
         if os.path.exists(lexicon_path):
             Log.process(f"Reading Lexicon from {os.path.basename(lexicon_path)}...")
@@ -48,10 +27,10 @@ class IntelligentDecoder:
         else:
             Log.warn(f"Lexicon not found at {lexicon_path}")
 
-        # Ensure blank token is handled correctly
+        # Keep the character labels in the same order as the model output layer.
         self.labels = char_list
         
-        # 2. LOAD DECODER
+        # Build the decoder only when both the language model and lexicon are available.
         if os.path.exists(lm_path) and unigrams_list:
             Log.process(f"Loading KenLM from {os.path.basename(lm_path)}...")
             try:
@@ -72,22 +51,23 @@ class IntelligentDecoder:
             self.use_lm = False
 
     def decode(self, logits):
+        """Decode a single CRNN output tensor into text."""
+
         if self.use_lm:
             text = self.decoder.decode(logits)
         else:
-            # Greedy Fallback
-            # pyctcdecode handles greedy decoding gracefully if no LM is attached
-            # but usually we want to explicit fallback if init failed.
+            # If LM-based decoding is unavailable, fall back to a simple argmax pass.
             try:
-                # Basic fallback if LM fails (requires manual mapping, but pyctcdecode helps)
                 text = self.decoder.decode(logits) 
             except:
-                # Absolute worst case manual greedy
+                # Worst-case fallback when the decoder object is unusable.
                 indexes = np.argmax(logits, axis=-1)
                 text = "".join([self.labels[i] for i in indexes if i != 0]) # Very rough approx
         return text
 
 def load_vocab(vocab_path):
+    """Load a character vocabulary file and prepend the CTC blank token."""
+
     if not os.path.exists(vocab_path):
         raise FileNotFoundError(f"Vocab file not found: {vocab_path}")
         

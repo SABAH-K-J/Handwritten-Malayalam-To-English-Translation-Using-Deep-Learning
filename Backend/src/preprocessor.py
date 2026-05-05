@@ -1,3 +1,5 @@
+"""Image geometry and OCR crop preprocessing helpers."""
+
 import cv2
 import numpy as np
 import json
@@ -6,6 +8,8 @@ import json
 # 1. GEOMETRY HELPERS (Keep for Frontend Crop)
 # ==========================================
 def order_points(pts):
+    """Return the four points in top-left, top-right, bottom-right, bottom-left order."""
+
     rect = np.zeros((4, 2), dtype="float32")
     s = pts.sum(axis=1)
     rect[0] = pts[np.argmin(s)]
@@ -16,6 +20,8 @@ def order_points(pts):
     return rect
 
 def four_point_transform(image, pts):
+    """Warp the image so the provided quadrilateral becomes a straight rectangle."""
+
     rect = order_points(pts)
     (tl, tr, br, bl) = rect
     widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
@@ -33,6 +39,8 @@ def four_point_transform(image, pts):
     return cv2.warpPerspective(image, M, (maxWidth, maxHeight))
 
 def manual_crop(image, points_json):
+    """Crop the image using frontend-provided corner points."""
+
     try:
         pts = np.array(json.loads(points_json), dtype="float32")
         h, w = image.shape[:2]
@@ -45,6 +53,8 @@ def manual_crop(image, points_json):
         return image
 
 def get_document_corners(image):
+    """Detect the largest four-point contour and return normalized corner coordinates."""
+
     ratio = image.shape[0] / 600.0
     small = cv2.resize(image, (int(image.shape[1] / ratio), 600))
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
@@ -67,17 +77,17 @@ def get_document_corners(image):
 # ==========================================
 def preprocess_crop_for_ocr(crop_img, target_h=64, target_w=256):
     """
-    Proper pipeline for models trained on BINARIZED handwritten images.
-    Binarize FIRST at full resolution, then resize.
+    Prepare a word crop for the CRNN by binarizing first, then resizing and padding.
+    The order matters because the model was trained on cleaned handwritten images.
     """
 
-    # 1. Grayscale
+    # Convert color input into grayscale before thresholding.
     if len(crop_img.shape) == 3:
         gray = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
     else:
         gray = crop_img.copy()
 
-    # 2. Adaptive threshold at ORIGINAL resolution
+    # Apply adaptive thresholding at the original resolution so stroke detail is preserved.
     binary = cv2.adaptiveThreshold(
         gray,
         255,
@@ -89,7 +99,7 @@ def preprocess_crop_for_ocr(crop_img, target_h=64, target_w=256):
 
     h, w = binary.shape
 
-    # 3. Only downscale if too tall
+    # Shrink tall crops before padding so extreme aspect ratios stay manageable.
     if h > target_h:
         scale = target_h / h
         new_w = int(w * scale)
@@ -98,7 +108,7 @@ def preprocess_crop_for_ocr(crop_img, target_h=64, target_w=256):
         resized = binary.copy()
         new_w = w
 
-    # 4. Pad height
+    # Center the text vertically inside the fixed-height canvas.
     pad_top = (target_h - resized.shape[0]) // 2
     pad_bottom = target_h - resized.shape[0] - pad_top
     resized = cv2.copyMakeBorder(
@@ -106,18 +116,18 @@ def preprocess_crop_for_ocr(crop_img, target_h=64, target_w=256):
         cv2.BORDER_CONSTANT, value=255
     )
 
-    # 5. If width too big → downscale
+    # If the crop is still too wide, shrink it to the model input width.
     if resized.shape[1] > target_w:
         resized = cv2.resize(resized, (target_w, target_h), interpolation=cv2.INTER_AREA)
 
-    # 6. Pad right
+    # Pad the remainder of the width with white background pixels.
     pad_right = target_w - resized.shape[1]
     final = cv2.copyMakeBorder(
         resized, 0, 0, 0, pad_right,
         cv2.BORDER_CONSTANT, value=255
     )
 
-    # 7. Normalize
+    # Normalize into the 0-1 range expected by the network.
     final = final.astype(np.float32) / 255.0
 
     return final

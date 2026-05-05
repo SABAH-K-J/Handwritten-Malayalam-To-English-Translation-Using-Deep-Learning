@@ -1,8 +1,11 @@
-# src/architecture.py
+"""CRNN architecture used for handwritten Malayalam word recognition."""
+
 import torch
 import torch.nn as nn
 
 class ResNetBlock(nn.Module):
+    """Residual convolution block used by the feature extractor."""
+
     def __init__(self, in_channels, out_channels, stride=1, downsample=None):
         super(ResNetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -13,6 +16,8 @@ class ResNetBlock(nn.Module):
         self.downsample = downsample
 
     def forward(self, x):
+        """Run the residual path and add it back to the shortcut connection."""
+
         identity = x
         if self.downsample is not None: identity = self.downsample(x)
         out = self.conv1(x)
@@ -25,6 +30,8 @@ class ResNetBlock(nn.Module):
         return out
 
 class CustomCRNN(nn.Module):
+    """Residual CNN + BiLSTM recognizer that maps word images to character logits."""
+
     def __init__(self, num_classes):
         super(CustomCRNN, self).__init__()
         self.in_channels = 64
@@ -33,7 +40,7 @@ class CustomCRNN(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # High-Res Configuration (Matches Training)
+        # Convolution stages follow the training-time feature extractor layout.
         self.layer1 = self._make_layer(64, 2, stride=1)
         self.layer2 = self._make_layer(128, 2, stride=2)     
         self.layer3 = self._make_layer(256, 2, stride=(2,1)) 
@@ -45,7 +52,7 @@ class CustomCRNN(nn.Module):
             nn.ReLU()
         )
         
-        # RNN Head (Matches Training)
+        # Sequence head converts extracted visual features into per-timestep logits.
         self.rnn = nn.Sequential(
             nn.LSTM(512, 256, bidirectional=True, batch_first=True, num_layers=2, dropout=0.5),
             nn.Linear(512, 256),
@@ -55,6 +62,8 @@ class CustomCRNN(nn.Module):
         )
 
     def _make_layer(self, out_channels, blocks, stride=1):
+        """Create a stack of residual blocks, inserting a projection when dimensions change."""
+
         downsample = None
         if stride != 1 or self.in_channels != out_channels:
             downsample = nn.Sequential(
@@ -69,17 +78,17 @@ class CustomCRNN(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        # 1. Feature Extraction (CNN)
+        """Convert a batch of word images into a batch of sequence logits."""
+
+        # 1. Feature extraction with convolutional layers.
         x = self.conv1(x); x = self.bn1(x); x = self.relu(x); x = self.maxpool(x)
         x = self.layer1(x); x = self.layer2(x); x = self.layer3(x); x = self.layer4(x)
         x = self.last_conv(x)
         
-        # 2. Reshape for RNN (Batch, Channels, Height, Width) -> (Batch, Width, Channels)
-        # Squeeze height (which should be 1) and permute
+        # 2. Reformat CNN output into a time series for the recurrent head.
         x = x.squeeze(2).permute(0, 2, 1) 
         
-        # 3. Sequence Modeling (RNN)
-        # We manually step through layers because nn.Sequential can't handle LSTM's tuple return
+        # 3. Sequence modeling with the bidirectional LSTM and linear projection layers.
         x, _ = self.rnn[0](x) # LSTM
         x = self.rnn[1](x)    # Linear
         x = self.rnn[2](x)    # ELU
