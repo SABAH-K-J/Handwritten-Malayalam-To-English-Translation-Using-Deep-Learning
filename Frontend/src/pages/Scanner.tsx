@@ -14,7 +14,8 @@ import html2canvas from "html2canvas";
 
 type TabType = "corrected" | "translation" | "raw";
 
-const BASE_URL = import.meta.env.VITE_API_URL || ""; // Use env var for prod, proxy for dev
+const rawApiUrl = import.meta.env.VITE_API_URL || "";
+const BASE_URL = rawApiUrl.replace(/\/+$/, ""); // Ensure no double slashes
 
 export default function Scanner() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
