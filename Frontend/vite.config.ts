@@ -10,11 +10,11 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     allowedHosts: true,
     proxy: {
-      '/predict': 'http://127.0.0.1:8000',
-      '/detect-corners': 'http://127.0.0.1:8000',
-      '/translate': 'http://127.0.0.1:8000',
-      '/generate-pdf': 'http://127.0.0.1:8000',
-      '/tts': 'http://127.0.0.1:8000'
+      '/predict': 'http://127.0.0.1:7860',
+      '/detect-corners': 'http://127.0.0.1:7860',
+      '/translate': 'http://127.0.0.1:7860',
+      '/generate-pdf': 'http://127.0.0.1:7860',
+      '/tts': 'http://127.0.0.1:7860'
     }
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

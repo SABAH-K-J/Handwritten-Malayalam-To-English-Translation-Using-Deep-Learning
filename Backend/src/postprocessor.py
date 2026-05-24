@@ -6,7 +6,7 @@ import re
 import unicodedata
 import pickle
 from symspellpy import SymSpell, Verbosity
-from transformers import pipeline
+from deep_translator import GoogleTranslator
 from src.logger import Log
 
 # Import configuration with a fallback so the module can still be imported in isolation.
@@ -33,35 +33,12 @@ class PostProcessor:
         self._init_translator()
 
     def _init_translator(self):
-        """Load the offline translation model or fall back to the hosted one."""
+        """Load the lightweight online translation model API (Google Translator)."""
 
         try:
-            Log.process("Initializing Translation Pipeline...")
-            
-            # Prefer the packaged offline model so translation works without network access.
-            if os.path.exists(TRANSLATOR_MODEL_PATH):
-                Log.info(f"Found Offline Model at: {os.path.basename(TRANSLATOR_MODEL_PATH)}")
-                model_source = TRANSLATOR_MODEL_PATH
-                offline_mode = True
-            else:
-                Log.warn("Offline model NOT found. Falling back to online (tiny) model.")
-                model_source = "facebook/nllb-200-distilled-600M"
-                offline_mode = False
-
-            # Build a Hugging Face translation pipeline around the selected model.
-            self.translator = pipeline(
-                "translation", 
-                model=model_source, 
-                device=self.device,
-                dtype=torch.float16 if self.device == 0 else torch.float32,
-                framework="pt"
-            )
-            
-            if offline_mode:
-                Log.success("Translator Loaded (OFFLINE - 1.3B Model)")
-            else:
-                Log.success("Translator Loaded (ONLINE - 600M Model)")
-            
+            Log.process("Initializing Google Translator Pipeline...")
+            self.translator = GoogleTranslator(source='ml', target='en')
+            Log.success("Translator Loaded (ONLINE - GoogleTranslator)")
         except Exception as e:
             Log.error(f"Translator failed to load: {e}")
 
@@ -123,10 +100,8 @@ class PostProcessor:
         translation = ""
         if self.translator:
             try:
-                # NLLB performs better when the sentence is explicitly terminated.
-                inp = text_with_grammar if text_with_grammar.endswith(('.', '?', '!')) else text_with_grammar + "."
-                out = self.translator(inp, src_lang="mal_Mlym", tgt_lang="eng_Latn", max_length=256)
-                translation = out[0]['translation_text']
+                out = self.translator.translate(text_with_grammar)
+                translation = out if out else ""
             except Exception as e:
                 translation = f"[Error: {str(e)}]"
                 Log.error(f"Translation Error: {e}")

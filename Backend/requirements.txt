@@ -10,8 +10,7 @@ pillow
 
 # --- Malayalam Tools & NLP ---
 symspellpy
-transformers
-sentencepiece
+deep-translator
 
 # --- Server & API ---
 fastapi

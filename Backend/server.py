@@ -46,9 +46,11 @@ app = FastAPI(
 
 # 2. CORS Setup (Allow Frontend Access)
 # In production, specific origins should be defined via environment variables.
-env_origins = os.getenv("ALLOWED_ORIGINS", "")
-if env_origins:
+env_origins = os.getenv("ALLOWED_ORIGINS", "*")
+if env_origins and env_origins != "*":
     origins = [origin.strip() for origin in env_origins.split(",")]
+elif env_origins == "*":
+    origins = ["*"]
 else:
     origins = [
         "http://localhost:3000",
@@ -305,6 +307,8 @@ def home():
     return {"message": "Malayalam OCR & Translation API is Online & Optimized!"}
 
 if __name__ == "__main__":
+
     import uvicorn
     # Run this file directly for local development.
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 7860))
+    uvicorn.run(app, host="0.0.0.0", port=port)
