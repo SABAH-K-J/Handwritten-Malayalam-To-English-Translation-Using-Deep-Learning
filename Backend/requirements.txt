@@ -11,6 +11,8 @@ pillow
 # --- Malayalam Tools & NLP ---
 symspellpy
 deep-translator
+pyctcdecode
+kenlm
 
 # --- Server & API ---
 fastapi
