@@ -37,8 +37,8 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Expose the port the app runs on
-EXPOSE 8000
+# Expose the standard port for Hugging Face Spaces (7860) or fallback to 7860
+EXPOSE 7860
 
-# Command to run the application
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Command to run the application (Uses PORT env var if set, otherwise 7860)
+CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-7860}

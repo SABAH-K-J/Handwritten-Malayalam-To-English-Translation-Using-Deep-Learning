@@ -7,7 +7,7 @@ import {
   ArrowRight, Sparkles, RotateCcw, FileText 
 } from "lucide-react";
 
-const BASE_URL = ""; // Proxy handles this
+const BASE_URL = import.meta.env.VITE_API_URL || ""; // Use env var for prod, proxy for dev
 
 export default function Translation() {
   const [malayalamText, setMalayalamText] = useState("");

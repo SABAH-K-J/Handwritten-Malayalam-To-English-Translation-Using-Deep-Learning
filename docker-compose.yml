@@ -6,9 +6,10 @@ services:
     container_name: ocr_backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "7860:7860"
     environment:
       - PYTHONUNBUFFERED=1
+      - PORT=7860
     # In production, code and models are baked into the image.
     # We remove the development volumes.
 
@@ -16,7 +17,7 @@ services:
     build: 
       context: ./Frontend
       args:
-        VITE_API_URL: "http://localhost:8000"
+        VITE_API_URL: "http://localhost:7860"
     container_name: ocr_frontend
     restart: unless-stopped
     ports:

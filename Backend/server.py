@@ -1,21 +1,23 @@
+"""FastAPI application that exposes OCR, translation, PDF, and TTS endpoints."""
+
 import os
 import io
 import numpy as np
 import cv2
 import uuid
 import shutil
-import logging
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 # --- Configuration & Security ---
+# File uploads are capped so the server does not keep unbounded image payloads in memory.
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB limit
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/bmp", "image/webp"]
 TEMP_UPLOAD_DIR = "temp"
 
-# Ensure temp directory exists securely
+# Ensure the upload directory exists before any request handler tries to write into it.
 if not os.path.exists(TEMP_UPLOAD_DIR):
     os.makedirs(TEMP_UPLOAD_DIR, mode=0o700) # Only owner can read/write
 
@@ -27,34 +29,14 @@ from reportlab.lib.styles import getSampleStyleSheet
 # --- TTS Import ---
 from gtts import gTTS
 
-# --- IMPORTS FROM NEW STRUCTURE ---
+# --- Imports from the internal OCR pipeline ---
+from src.logger import Log
 from src.ocr_engine import MalayalamOCR
 from src.config import TEMP_DIR, DEBUG_MODE
 from src.preprocessor import get_document_corners
 
-# --- COLOR LOGGING HELPER ---
-class Log:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    CYAN = "\033[96m"
-
-    @staticmethod
-    def process(msg): print(f"{Log.CYAN}{Log.BOLD}[PROCESS]{Log.RESET} {msg}")
-    @staticmethod
-    def info(msg):    print(f"{Log.BLUE}[INFO]{Log.RESET}    {msg}")
-    @staticmethod
-    def success(msg): print(f"{Log.GREEN}{Log.BOLD}[SUCCESS]{Log.RESET} {msg}")
-    @staticmethod
-    def warn(msg):    print(f"{Log.YELLOW}[WARN]{Log.RESET}    {msg}")
-    @staticmethod
-    def error(msg):   print(f"{Log.RED}{Log.BOLD}[ERROR]{Log.RESET}   {msg}")
-
 # 1. Initialize the App
-# Disable docs in production for security
+# Swagger/ReDoc are disabled outside debug mode to reduce public exposure.
 app = FastAPI(
     title="Malayalam OCR API", 
     description="Production Ready OCR Backend",
@@ -63,10 +45,12 @@ app = FastAPI(
 )
 
 # 2. CORS Setup (Allow Frontend Access)
-# In production, specific origins should be defined via environment variables
-env_origins = os.getenv("ALLOWED_ORIGINS", "")
-if env_origins:
+# In production, specific origins should be defined via environment variables.
+env_origins = os.getenv("ALLOWED_ORIGINS", "*")
+if env_origins and env_origins != "*":
     origins = [origin.strip() for origin in env_origins.split(",")]
+elif env_origins == "*":
+    origins = ["*"]
 else:
     origins = [
         "http://localhost:3000",
@@ -84,12 +68,18 @@ app.add_middleware(
 
 # --- Data Models ---
 class TranslationRequest(BaseModel):
+    """Request payload for the text-only translation endpoint."""
+
     text: str
 
 class PDFRequest(BaseModel):
+    """Request payload for PDF generation."""
+
     text: str
 
 class TTSRequest(BaseModel):
+    """Request payload for text-to-speech generation."""
+
     text: str
     lang: str  # 'en' for English, 'ml' for Malayalam
 
@@ -98,6 +88,8 @@ ocr_engine = None
 
 @app.on_event("startup")
 def load_model():
+    """Load the OCR pipeline once when the API process starts."""
+
     global ocr_engine
     print("\n" + "="*50)
     Log.process("Server starting...")
@@ -111,7 +103,7 @@ def load_model():
     except Exception as e:
         Log.error(f"CRITICAL ERROR : Could not load model.\n{e}")
 
-# --- NEW ROUTE: Corner Detection for Auto-Crop ---
+# --- New Route: Corner Detection for Auto-Crop ---
 @app.post("/detect-corners")
 async def detect_corners_endpoint(file: UploadFile = File(...)):
     """
@@ -119,19 +111,20 @@ async def detect_corners_endpoint(file: UploadFile = File(...)):
     for the frontend editor to snap to the document.
     """
     try:
-        # Validate type
+           # Reject unsupported formats before doing any expensive image work.
         if file.content_type not in ALLOWED_IMAGE_TYPES:
              return JSONResponse(status_code=400, content={"error": "Invalid file type."})
 
-        # Read into memory for detection (limited size check)
+           # Read the uploaded image once so the same bytes can be reused for decoding.
         contents = await file.read()
         if len(contents) > MAX_FILE_SIZE:
              return JSONResponse(status_code=413, content={"error": "File too large (Max 10MB)"})
 
+           # OpenCV gets the raw bytes first; PIL is used to correct EXIF rotation when present.
         nparr = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Handle EXIF rotation (Critical for mobile uploads)
+           # Handle EXIF rotation so mobile uploads are detected in the right orientation.
         try:
             from PIL import Image, ImageOps
             pil_image = Image.open(io.BytesIO(contents))
@@ -146,7 +139,7 @@ async def detect_corners_endpoint(file: UploadFile = File(...)):
         
     except Exception as e:
         Log.warn(f"Corner detection failed: {e}")
-        # Default to a centered rectangle
+        # Fall back to a centered rectangle if contour detection fails.
         return {"points": [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]]}
 
 # 4. Image OCR Route (Updated for Cropping & Lens)
@@ -155,13 +148,15 @@ async def predict(
     file: UploadFile = File(...),
     crop_points: str = Form(None)
 ):
+    """Run OCR on an uploaded image and return raw, corrected, and translated text."""
+
     temp_file_path = None
     try:
-        # 1. Validation
+        # 1. Validate the upload before touching disk.
         if file.content_type not in ALLOWED_IMAGE_TYPES:
              return JSONResponse(status_code=400, content={"error": "Invalid file type. Only images allowed."})
         
-        # 2. Secure Save
+        # 2. Save the upload with a random filename so user input cannot control the path.
         file_ext = file.filename.split('.')[-1] if '.' in file.filename else "jpg"
         filename_secure = f"{uuid.uuid4()}.{file_ext}"
         temp_file_path = os.path.join(TEMP_UPLOAD_DIR, filename_secure)
@@ -169,6 +164,7 @@ async def predict(
         file_size = 0
         with open(temp_file_path, "wb") as buffer:
             while True:
+                # Stream in chunks to avoid loading large uploads into memory at once.
                 chunk = await file.read(1024 * 1024) # 1MB chunks
                 if not chunk:
                     break
@@ -179,7 +175,7 @@ async def predict(
                     return JSONResponse(status_code=413, content={"error": "File too large (Max 10MB)"})
                 buffer.write(chunk)
 
-        # 3. Run OCR
+        # 3. Run OCR through the shared engine.
         try:
             full_text, corrected, translated = ocr_engine.run(temp_file_path, crop_points=crop_points, debug=DEBUG_MODE)
         except Exception as e:
@@ -201,7 +197,7 @@ async def predict(
         return JSONResponse(status_code=500, content={"error": str(e)})
         
     finally:
-        # 4. Cleanup
+        # 4. Remove the temporary upload regardless of success or failure.
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
@@ -219,8 +215,8 @@ async def translate_text_only(request: TranslationRequest):
         if not ocr_engine:
             raise Exception("Model is not loaded.")
 
-        # Re-use the PostProcessor logic directly
-        # Note: 'process' returns (corrected, translation)
+        # Re-use the post-processor directly so text-only requests follow the same cleanup path.
+        # Note: 'process' returns (corrected, translation).
         corrected, translation = ocr_engine.post_processor.process(request.text)
 
         return JSONResponse(content={
@@ -245,7 +241,7 @@ async def generate_pdf_endpoint(request: PDFRequest):
     """
     buffer = io.BytesIO()
     
-    # Create the PDF object
+    # Build the PDF in memory so the endpoint can stream the result back immediately.
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
@@ -255,22 +251,22 @@ async def generate_pdf_endpoint(request: PDFRequest):
         bottomMargin=18
     )
 
-    # Styles
+    # Use the default ReportLab styles for a simple document layout.
     styles = getSampleStyleSheet()
     story = []
 
-    # Add Title
+    # Add a title block before the translated content.
     story.append(Paragraph("Translated Document", styles['Title']))
     story.append(Spacer(1, 12))
 
-    # Add Body Text (Handle newlines properly)
+    # Convert newlines to HTML breaks because ReportLab Paragraph renders basic markup.
     formatted_text = request.text.replace("\n", "<br />")
     story.append(Paragraph(formatted_text, styles['Normal']))
 
-    # Build PDF
+    # Finalize the document into the in-memory buffer.
     doc.build(story)
     
-    # Move buffer position to beginning
+    # Rewind so the response reads from the start of the generated file.
     buffer.seek(0)
     
     return StreamingResponse(
@@ -289,11 +285,10 @@ async def tts_endpoint(request: TTSRequest):
         if not request.text.strip():
             raise Exception("No text provided")
 
-        # Generate Audio
-        # 'slow=False' makes it read at normal speed
+        # Generate audio at normal reading speed.
         tts = gTTS(text=request.text, lang=request.lang, slow=False)
         
-        # Save to in-memory buffer
+        # Write the MP3 directly into memory so no temporary file is needed.
         buffer = io.BytesIO()
         tts.write_to_fp(buffer)
         buffer.seek(0)
@@ -307,9 +302,13 @@ async def tts_endpoint(request: TTSRequest):
 # 8. Health Check
 @app.get("/")
 def home():
+    """Simple health check that confirms the API process is alive."""
+
     return {"message": "Malayalam OCR & Translation API is Online & Optimized!"}
 
 if __name__ == "__main__":
+
     import uvicorn
-    # Run with: python main.py
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Run this file directly for local development.
+    port = int(os.environ.get("PORT", 7860))
+    uvicorn.run(app, host="0.0.0.0", port=port)
